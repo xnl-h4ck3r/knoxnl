@@ -19,12 +19,12 @@ $ python setup.py install
 ## Usage
 
 | Arg  | Long Arg                 | Description                                                                                                                                           |
-| ---- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ---- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------- |
 | -i   | --input                  | Input to send to KNOXSS API: a single URL, or file of URLs.                                                                                           |
 | -o   | --output                 | The file to save the successful XSS and payloads to. If the file already exist it will just be appended to unless option `-ow` is passed.             |
 | -ow  | --output-overwrite       | If the output file already exists, it will be overwritten instead of being appended to.                                                               |
 | -X   | --http-method            | Which HTTP method to use, values `GET`, `POST` or `BOTH` (default: `GET`). If `BOTH` is chosen, then a `GET` call will be made, followed by a `POST`. |
-| -H   | --headers                | Add custom headers to pass with HTTP requests. Pass in the format `'Header1:value1;Header2:value2'` (no spaces around `:` or `;`).                    |
+| -H   | --headers                | Add custom headers to pass with HTTP requests. Pass in the format \'Header1:value1                                                                    | Header2:value2\' (e.g. separate different headers with a pipe | character). |
 | -A   | --api-key                | The KNOXSS API Key to use. This will be used instead of the value in `config.yml`                                                                     |
 | -afb | --advanced-filter-bypass | If the advanced filter bypass should be used on the KNOXSS API.                                                                                       |
 | -s   | --success-only           | Only show successful XSS payloads in the CLI output.                                                                                                  |
