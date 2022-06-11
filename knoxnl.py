@@ -221,6 +221,9 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     print(colored('The provided API Key is invalid!', 'red'))
                     rateLimitExceeded = True
                     knoxssResponse.Calls = tc.RED+'Incorrect API key: '+tc.NORMAL+API_KEY
+                elif resp.text.index('type of target page can\'t lead to XSS') >= 0: 
+                    if verbose():
+                        print(colored('XSS is not possible with the requested URL.', 'red'))
                 else:
                     print(colored('Something went wrong: ' + resp.text.strip(),'red'))
                         
