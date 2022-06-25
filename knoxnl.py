@@ -2,6 +2,8 @@
 # Python 3
 # A wrapper around the amazing KNOXSS API (https://knoxss.me/?page_id=2729) by Brute Logic
 # Inspired by "knoxssme" by @edoardottt2
+# Full help here: https://github.com/xnl-h4ck3r/knoxnl#readme
+# Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) ☕ (I could use the caffeine!)
 
 import requests
 import argparse
@@ -22,6 +24,9 @@ outFile = None
 fileIsOpen = False
 
 DEFAULT_API_URL = 'https://knoxss.me/api/v3'
+
+# The default timeout for KNOXSS API to respond in seconds
+DEFAULT_TIMEOUT = 180
 
 # Yaml config values
 API_URL = ''
@@ -79,8 +84,8 @@ def showOptions():
     try:
         print(colored('Selected config and settings:', 'cyan'))
         
-        print(colored('KNOXSS API Url: ', 'magenta'), API_URL)
-        print(colored('KNOXSS API Key: ', 'magenta'), API_KEY)      
+        print(colored('KNOXSS API Url:', 'magenta'), API_URL)
+        print(colored('KNOXSS API Key:', 'magenta'), API_KEY)      
         
         if urlPassed:
             print(colored('-i: ' + args.input, 'magenta'), 'The URL to check with KNOXSS API.')
@@ -100,6 +105,7 @@ def showOptions():
             print(colored('-H: ' + args.headers, 'magenta'), 'HTTP Headers passed with requests.')
             
         print(colored('-afb: ' + str(args.advanced_filter_bypass), 'magenta'), 'Whether the Advanced Filter Bypass option is passed to KNOXSS API.')
+        print(colored('-t: ' + str(args.timeout), 'magenta'), 'The number of seconds to wait for KNOXSS API to respond.')
         print()
 
     except Exception as e:
@@ -128,7 +134,7 @@ def getConfig():
             API_KEY = config.get('API_KEY')
             if args.api_key != '':
                 API_KEY = args.api_key
-                print(colored('NOTE: Overriding "API_KEY" from config.yml with passed API Key ', 'cyan'), API_KEY + '\n')
+                print(colored('NOTE: Overriding "API_KEY" from config.yml with passed API Key', 'cyan'), API_KEY + '\n')
             else:
                 if API_KEY == 'YOUR_API_KEY':
                     print(colored('ERROR: You need to add your "API_KEY" to config.yml or pass it with the -A option.', 'red'))
@@ -186,46 +192,57 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
             
         # Make a request to the KNOXSS API
         try:
-            resp = requests.post(
-                url=API_URL,
-                headers=apiHeaders,
-                data=data
-            )
-
+            try:
+                resp = requests.post(
+                    url=API_URL,
+                    headers=apiHeaders,
+                    data=data,
+                    timeout=args.timeout
+                )
+                fullResponse = resp.text.strip()
+            except Exception as e:
+                knoxssResponse.Error = str(e)
+                fullResponse = 'AN ERROR OCCURRED CALLING KNOXSS API'
+                return
+            
+            if resp.text.find('Hosting Server Read Timeout') > 0:
+                knoxssResponse.Error = 'Hosting Server Read Timeout'
+                fullResponse = 'Hosting Server Read Timeout'
+            
             # Display the data sent to API and the response
             if verbose():
                 print('KNOXSS API request:')
                 print('     Data: ' + data)
                 print('KNOXSS API response:')
-                print(resp.text.strip())
+                print(fullResponse)
                 
             knoxssResponse.Code = str(resp.status_code)
             
             # Try to get the JSON response
             try:
-                response = json.loads(resp.text)
-                knoxssResponse.XSS = str(response['XSS'])
-                knoxssResponse.PoC = str(response['PoC'])
-                knoxssResponse.Calls = str(response['API Call'])
+                jsonResponse = json.loads(fullResponse)
+                knoxssResponse.XSS = str(jsonResponse['XSS'])
+                knoxssResponse.PoC = str(jsonResponse['PoC'])
+                knoxssResponse.Calls = str(jsonResponse['API Call'])
                 if knoxssResponse.Calls == '0':
                     knoxssResponse.Calls = 'Unknown'
-                knoxssResponse.Error = str(response['Error'])
+                knoxssResponse.Error = str(jsonResponse['Error'])
                 if knoxssResponse.Error == 'API rate limit exceeded.':
                     knoxssResponse.Calls = tc.RED+'API rate limit exceeded!'+tc.RED
                     rateLimitExceeded = True
-                knoxssResponse.POSTData = str(response['POST Data'])
+                knoxssResponse.POSTData = str(jsonResponse['POST Data'])
                 
             except Exception as e:
                 # The response probably wasn't JSON, so check the response message
-                if resp.text.strip() == 'Incorrect API key.':
+                if fullResponse == 'Incorrect API key.':
                     print(colored('The provided API Key is invalid!', 'red'))
                     rateLimitExceeded = True
                     knoxssResponse.Calls = tc.RED+'Incorrect API key: '+tc.NORMAL+API_KEY
-                elif resp.text.find('type of target page can\'t lead to XSS') >= 0: 
+                elif fullResponse.find('type of target page can\'t lead to XSS') >= 0: 
                     if verbose():
                         print(colored('XSS is not possible with the requested URL.', 'red'))
                 else:
-                    print(colored('Something went wrong: ' + resp.text.strip(),'red'))
+                    print(colored('Something went wrong: ' + fullResponse,'red'))
                         
             if knoxssResponse.Calls != 'Unknown':
                 latestApiCalls = knoxssResponse.Calls
@@ -405,6 +422,14 @@ if __name__ == '__main__':
         type=processes_type,
         default=3,
         metavar="<integer>",
+    )
+    parser.add_argument(
+        '-t',
+        '--timeout',
+        help='How many seconds to wait for the KNOXSS API to respond before giving up (default: '+str(DEFAULT_TIMEOUT)+' seconds)',
+        default=DEFAULT_TIMEOUT,
+        type=int,
+        metavar="<seconds>",
     )
     parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
     args = parser.parse_args()

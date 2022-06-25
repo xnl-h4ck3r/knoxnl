@@ -29,6 +29,7 @@ $ python setup.py install
 | -afb | --advanced-filter-bypass | If the advanced filter bypass should be used on the KNOXSS API.                                                                                                   |
 | -s   | --success-only           | Only show successful XSS payloads in the CLI output.                                                                                                              |
 | -p   | --processes              | Basic multithreading is done when getting requests for a file of URLs. This argument determines the number of processes (threads) used (default: 3)               |
+| -t   | --timeout                | How many seconds to wait for the KNOXSS API to respond before giving up (default: 180)                                                                            |
 | -v   | --verbose                | Verbose output                                                                                                                                                    |
 | -h   | --help                   | show the help message and exit                                                                                                                                    |
 
