@@ -85,11 +85,11 @@ If you come across any problems at all, or have ideas for improvements, please f
 
 Single URL:
 
-<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/xnLinkFinder/images/example1.png"></center>
+<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/example1.png"></center>
 
 File of URLs checked with GET and POST:
 
-<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/xnLinkFinder/images/example2.png"></center>
+<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/example2.png"></center>
 
 Good luck and good hunting!
 If you really love the tool (or any others), or they helped you find an awesome bounty, consider [BUYING ME A COFFEE!](https://ko-fi.com/xnlh4ck3r) ☕ (I could use the caffeine!)
