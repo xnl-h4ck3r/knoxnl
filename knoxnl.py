@@ -13,6 +13,7 @@ from termcolor import colored
 import yaml
 import json
 import os
+import urllib
 
 # Global variables
 stopProgram = False
@@ -169,6 +170,8 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
         
         # Replace any & in the URL with encoded value so we can add other data using &
         data = targetUrl.replace('&', '%26')
+        # Then fully URL encode the whole URL
+        data = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in data)
         data = 'target=' + data
         
         # Change data depending on method

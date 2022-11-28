@@ -1,4 +1,4 @@
-<center><img src="https://github.com/xnl-h4ck3r/knoxnl/raw/main/title.png"></center>
+<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
 ## About
 
@@ -54,7 +54,7 @@ The `config.yml` file has the keys which can be updated to suit your needs:
 Pass a single URL:
 
 ```
-python3 knoxnl.py -i 'https://brutelogic.com.br/xss.php'
+python3 knoxnl.py -i "https://brutelogic.com.br/xss.php"
 ```
 
 Or a file of URLs:
@@ -68,13 +68,13 @@ python3 knoxnl.py -i ~/urls.txt
 Test a single URL for both GET and POST. if it is successful, the payload will be output to `output.txt`. In this case, an API key is provided, overriding any in `config.yml` if it exists. Also, the parameter value has been passed as `[XSS]` which will request the KNOXSS API to enable Flash Mode which performs a single quick XSS Polyglot based test:
 
 ```
-python3 knoxnl.py -i 'https://brutelogic.com.br/xss.php?b3=[XSS]' -X BOTH -o output.txt -A 93c864f5-af3a-4f6a-8b25-8662bc8b5ab6
+python3 knoxnl.py -i "https://brutelogic.com.br/xss.php?b3=[XSS]" -X BOTH -o output.txt -A 93c864f5-af3a-4f6a-8b25-8662bc8b5ab6
 ```
 
 Pass cookies and an auth header for a single URL, and use the Advanced Filter Bypass option:
 
 ```
-python3 knoxnl.py -i 'https://bugbountytarget.com?a=one&b=2' -afb -H 'Cookie: sessionId=9d7127ca-8966-4ae9-b20a-c2892a2f1167; lang=en;|Authorization: Basic eyJZb3UgZGlkbid0IHRoaW5rIHRoaXMgYSBnZW51aW5lIHRva2VuIGRpZCB5b3U/ISA7KSJ9'
+python3 knoxnl.py -i "https://bugbountytarget.com?a=one&b=2" -afb -H "Cookie: sessionId=9d7127ca-8966-4ae9-b20a-c2892a2f1167; lang=en;|Authorization: Basic eyJZb3UgZGlkbid0IHRoaW5rIHRoaXMgYSBnZW51aW5lIHRva2VuIGRpZCB5b3U/ISA7KSJ9"
 ```
 
 ## Issues
@@ -85,11 +85,11 @@ If you come across any problems at all, or have ideas for improvements, please f
 
 Single URL:
 
-<center><img src="https://github.com/xnl-h4ck3r/knoxnl/raw/main/example1.png"></center>
+<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/xnLinkFinder/images/example1.png"></center>
 
 File of URLs checked with GET and POST:
 
-<center><img src="https://github.com/xnl-h4ck3r/knoxnl/raw/main/example2.png"></center>
+<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/xnLinkFinder/images/example2.png"></center>
 
 Good luck and good hunting!
 If you really love the tool (or any others), or they helped you find an awesome bounty, consider [BUYING ME A COFFEE!](https://ko-fi.com/xnlh4ck3r) ☕ (I could use the caffeine!)

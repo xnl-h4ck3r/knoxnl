@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 setup(
     name="knoxnl",
     packages=find_packages(),
-    version="0.1",
+    version=__import__('knoxnl').__version__,
     description="A python wrapper around the amazing KNOXSS API by Brute Logic (requires an API Key)",
     long_description=open("README.md").read(),
     author="@xnl-h4ck3r",
