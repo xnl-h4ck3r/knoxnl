@@ -305,7 +305,16 @@ def processOutput(target, method, knoxssResponse):
                 
             if knoxssResponse.Error != 'none':
                 if not args.success_only:
-                    print(colored('[ ERR! ] - (' + method + ')  ' + target + '  {' + knoxssResponse.Error + '}', 'red'))
+                    knoxssResponseError = knoxssResponse.Error
+                    
+                    # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
+                    if 'InvalidChunkLength' in knoxssResponseError:
+                        knoxssResponseError = 'The API Timed Out'
+                    # If there is "Read timed out" in the error returned, it means the target website itself timed out
+                    if 'Read timed out' in knoxssResponseError:
+                        knoxssResponseError = 'The target website timed out'      
+                                
+                    print(colored('[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError, 'red'))
             else:
                 if knoxssResponse.XSS == 'true':
                     xssText = '[ XSS! ] - (' + method + ')  ' + knoxssResponse.PoC
@@ -459,6 +468,8 @@ if __name__ == '__main__':
         processInput()        
         
         # Show the user the latest API quota       
+        if latestApiCalls is None:
+            latestApiCalls = 'Unknown'
         print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
         
         # Report if any successful XSS was found this time

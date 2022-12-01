@@ -1,5 +1,11 @@
 ## Changelog
 
+- v1.1
+
+  - Changed
+
+    - Small improvements to display some errors in a better way
+
 - v1.0
 
   - Changed
