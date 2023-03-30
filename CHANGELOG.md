@@ -1,5 +1,17 @@
 ## Changelog
 
+- v1.2
+
+  - New
+
+    - Add argument `-oa`/`--output-all`. If passed, all results will be output to the file, not just successful one's.
+    - Show the current API calls and limit in the CLI at the end of each line, e.g. `[1337/3335]`.
+    - Try to close the output file before ending when someone presses Ctrl-C.
+
+  - Changed
+
+    - Include `pyaml` in the `setup.py` file as this is required.
+
 - v1.1
 
   - Changed

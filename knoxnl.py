@@ -75,6 +75,11 @@ def handler(signal_received, frame):
     stopProgram = True
     if not rateLimitExceeded:
         print(colored('>>> "Oh my God, they killed Kenny... and knoXnl!" - Kyle','red'))
+        # Try tp close the file before ending
+        try:
+            outFile.close()
+        except:
+            pass
         quit()
 
 # Show the chosen options and config settings
@@ -96,6 +101,7 @@ def showOptions():
         if fileIsOpen:
             print(colored('-o: ' + args.output, 'magenta'), 'The output file where successful XSS payloads will be saved.')
             print(colored('-ow: ' + str(args.output_overwrite), 'magenta'), 'Whether the output will be overwritten if it already exists.')
+            print(colored('-oa: ' + str(args.output_all), 'magenta'), 'Whether the output all results to the output file, not just successful one\'s.')
         
         if not urlPassed:
             print(colored('-p: ' + str(args.processes), 'magenta'), 'The number of parallel requests made.')
@@ -313,18 +319,24 @@ def processOutput(target, method, knoxssResponse):
                     # If there is "Read timed out" in the error returned, it means the target website itself timed out
                     if 'Read timed out' in knoxssResponseError:
                         knoxssResponseError = 'The target website timed out'      
-                                
-                    print(colored('[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError, 'red'))
+                    
+                    xssText = '[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError
+                    print(colored(xssText, 'red'), colored('['+latestApiCalls+']','white'))
+                    if args.output_all and fileIsOpen:
+                        outFile.write(xssText + '\n')
             else:
                 if knoxssResponse.XSS == 'true':
                     xssText = '[ XSS! ] - (' + method + ')  ' + knoxssResponse.PoC
-                    print(colored(xssText, 'green'))
+                    print(colored(xssText, 'green'), colored('['+latestApiCalls+']','white'))
                     successCount = successCount + 1
                     if fileIsOpen:
                         outFile.write(xssText + '\n')
                 else:
                     if not args.success_only:
-                        print(colored('[ SAFE ] - (' + method + ')  ' + target, 'yellow'))
+                        xssText = '[ SAFE ] - (' + method + ')  ' + target
+                        print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
+                        if args.output_all and fileIsOpen:
+                            outFile.write(xssText + '\n')
                     
     except Exception as e:
         print(colored('ERROR showOutput 1: ' + str(e), 'red'))
@@ -391,6 +403,12 @@ if __name__ == '__main__':
         '--output-overwrite',
         action='store_true',
         help='If the output file already exists, it will be overwritten instead of being appended to.',
+    )
+    parser.add_argument(
+        '-oa',
+        '--output-all',
+        action='store_true',
+        help='Output all results to file, not just successful one\'s.',
     )
     parser.add_argument(
         '-X',

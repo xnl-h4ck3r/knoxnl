@@ -10,5 +10,5 @@ setup(
     author="@xnl-h4ck3r",
     url="https://github.com/xnl-h4ck3r/knoxnl",
     py_modules=["knoxnl"],
-    install_requires=["argparse","requests","termcolor"],
+    install_requires=["argparse","requests","termcolor","pyaml"],
 )
