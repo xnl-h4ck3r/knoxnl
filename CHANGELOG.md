@@ -1,5 +1,11 @@
 ## Changelog
 
+- v1.3
+
+  - New
+
+    - If a file is passed as input and the `-o` \ `--output` argument is passed then if the KNOXSS API rate limit is reached before checking all URLs, all unchecked URLs will be written to a file with the same location and name as the output file, but with a `.todo` suffix. This file can then be renamed and used as input when you are allowed to make API requests again.
+
 - v1.2
 
   - New

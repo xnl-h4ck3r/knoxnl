@@ -47,6 +47,10 @@ The `config.yml` file has the keys which can be updated to suit your needs:
 - The API standard rate limit is 3335 requests over a 24 hours period. That means an average of **2.3 requests per minute** so please try to keep this pace **to not overload the system**.
 - **Generating or Regenerating your API Key** - The API key is in your profile. If you have never generated it you need to hit the button at least once to generate it and save. Any time you need a new API key for security reasons, you can simply hit the button and regenerate it.
 - **Flash Mode Mark - [XSS]** - Provide the `[XSS]` mark in any place of the target's data values to enable Flash Mode which enables KNOXSS to perform a single quick XSS Polyglot based test.
+- At the time of writing this, the daily limit of KNOXSS API calls is **3335**. If you are testing a large file of URLs,it is advisable that you use the `-o` / `--output` option to specify a file where output will be written.
+- By default, only successful results are written to the output file.
+- Passing argument `-oa` / `--output-all` will write **ALL** results to the output file, not just successful one's.
+- If you use the `-o` / `--output` option and the API limit is reached part way through the input, all unchecked URLs will be output to an file in the same location, and with the same name, as the output file, but with a `.todo` suffix. You can then rename this file and use this as input at another time.
 
 ## Examples
 

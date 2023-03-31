@@ -23,6 +23,7 @@ rateLimitExceeded = False
 successCount = 0
 outFile = None
 fileIsOpen = False
+todoFile = None
 
 DEFAULT_API_URL = 'https://knoxss.me/api/v3'
 
@@ -75,7 +76,7 @@ def handler(signal_received, frame):
     stopProgram = True
     if not rateLimitExceeded:
         print(colored('>>> "Oh my God, they killed Kenny... and knoXnl!" - Kyle','red'))
-        # Try tp close the file before ending
+        # Try to close the file before ending
         try:
             outFile.close()
         except:
@@ -167,7 +168,7 @@ def getConfig():
             
 # Call the KNOXSS API
 def knoxssApi(targetUrl, headers, method, knoxssResponse):
-    global latestApiCalls, rateLimitExceeded, stopProgram
+    global latestApiCalls, rateLimitExceeded, stopProgram, todoFile
     try:
         apiHeaders = {'X-API-KEY' : API_KEY, 
                      'Content-Type' : 'application/x-www-form-urlencoded',
@@ -239,6 +240,15 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                 if knoxssResponse.Error == 'API rate limit exceeded.':
                     knoxssResponse.Calls = tc.RED+'API rate limit exceeded!'+tc.RED
                     rateLimitExceeded = True
+                    # If a file was passed as input, and there is an output file, try to open the todo file which 
+                    # any remaining targets will be written to
+                    if not urlPassed and args.output != "":
+                        try:
+                            todoFile = open(os.path.expanduser(args.output+'.todo'), "a")
+                        except:
+                            pass
+                        # Write the target to the todo file
+                        todoFile.write(targetUrl.strip()+'\n')
                 knoxssResponse.POSTData = str(jsonResponse['POST Data'])
                 
             except Exception as e:
@@ -321,20 +331,29 @@ def processOutput(target, method, knoxssResponse):
                         knoxssResponseError = 'The target website timed out'      
                     
                     xssText = '[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError
-                    print(colored(xssText, 'red'), colored('['+latestApiCalls+']','white'))
+                    if urlPassed or rateLimitExceeded:
+                        print(colored(xssText, 'red'))
+                    else:
+                        print(colored(xssText, 'red'), colored('['+latestApiCalls+']','white'))
                     if args.output_all and fileIsOpen:
                         outFile.write(xssText + '\n')
             else:
                 if knoxssResponse.XSS == 'true':
                     xssText = '[ XSS! ] - (' + method + ')  ' + knoxssResponse.PoC
-                    print(colored(xssText, 'green'), colored('['+latestApiCalls+']','white'))
+                    if urlPassed:
+                        print(colored(xssText, 'green'))
+                    else:
+                        print(colored(xssText, 'green'), colored('['+latestApiCalls+']','white'))
                     successCount = successCount + 1
                     if fileIsOpen:
                         outFile.write(xssText + '\n')
                 else:
                     if not args.success_only:
                         xssText = '[ SAFE ] - (' + method + ')  ' + target
-                        print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
+                        if urlPassed:
+                            print(colored(xssText, 'yellow'))
+                        else:
+                            print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
                             outFile.write(xssText + '\n')
                     
@@ -344,8 +363,7 @@ def processOutput(target, method, knoxssResponse):
 # Process one URL        
 def processUrl(target):
     
-    global stopProgram, rateLimitExceeded
-    
+    global stopProgram, rateLimitExceeded, latestApiCalls, urlPassed, todoFile
     try:
         if not stopProgram and not rateLimitExceeded:
             target = target.strip()
@@ -362,10 +380,14 @@ def processUrl(target):
                 knoxssApi(target, headers, method, knoxssResponse)
                 processOutput(target, method, knoxssResponse)
         else:
-            os.kill(os.getpid(),SIGINT)
-                   
+            # If processing a target from a file, write the target to a todo file
+            if not urlPassed and args.output != "":
+                todoFile.write(target.strip()+'\n')
+            else:
+                os.kill(os.getpid(),SIGINT)
+
     except Exception as e:
-        print(colored('ERROR processUrl 1: ' + str(e), 'red'))
+        print(colored('ERROR processUrl 1: ' + str(e), 'red'))   
 
 # Validate the -p argument 
 def processes_type(x):
@@ -490,6 +512,11 @@ if __name__ == '__main__':
             latestApiCalls = 'Unknown'
         print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
         
+        # If a file was passed, the API limit was reached, and the output file was specifed
+        # let the user know about the todo file
+        if rateLimitExceeded and not urlPassed and args.output != "":
+            print(colored('The unchecked URLs have been written to','cyan'),colored(args.output+'.todo\n', 'white'))
+            
         # Report if any successful XSS was found this time
         if successCount > 0:
             print(colored('🤘 '+str(successCount)+' successful XSS found! 🤘\n','green'))
@@ -502,6 +529,14 @@ if __name__ == '__main__':
                 outFile.close()
             except Exception as e:
                 print(colored("ERROR: Unable to close output file: " + str(e), "red"))
+        
+        # If the rate limit was exceeded, a file was passed, and an output file was specified,
+        # close the todo file
+        if rateLimitExceeded and not urlPassed and args.output != "":
+            try:
+                todoFile.close()
+            except:
+                pass
 
     except Exception as e:
         print(colored('ERROR main 1: ' + str(e), 'red'))
