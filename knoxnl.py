@@ -114,7 +114,10 @@ def showOptions():
                 print(colored('-pd: ' + args.post_data, 'magenta'), 'Data passed with a POST request.')
             else:
                 if urlPassed:
-                    postData = args.input.split('?')[1]
+                    try:
+                        postData = args.input.split('?')[1]
+                    except:
+                        postData = ''
                     print(colored('-pd: ' + postData, 'magenta'), 'Data passed with a POST request.')
                 else:
                     print(colored('-pd: {the URL query string}', 'magenta'), 'Data passed with a POST request.')
