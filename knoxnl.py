@@ -360,7 +360,10 @@ def processOutput(target, method, knoxssResponse):
                     
                     # If method is POST, remove the query string from the target and show the post data in [ ] 
                     if method == 'POST':
-                        querystring = target.split('?')[1]
+                        try:
+                            querystring = target.split('?')[1]
+                        except:
+                            querystring = ''
                         target = target.split('?')[0]
                         if args.post_data:
                             target = target + ' ['+args.post_data+']'
