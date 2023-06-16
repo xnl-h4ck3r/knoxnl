@@ -1,5 +1,17 @@
 ## Changelog
 
+- v1.4
+
+  - New
+
+    - Add argument `-pd`/`--post-data`. If a POST request is made, this is the POST data passed. It must be in the format `'param1=value&param2=value&param3=value'`. If this isn't passed and query string parameters are used, then these will be used as POST data if POST Method is requested.
+
+  - Changed
+
+    - Fix a bug that was incorrectly formatting POST requests when using the URL query string as Post data.
+    - When showing Error results, remove the query string from the URL and show post data in `[]` after.
+    - When `-v` is used and settings are displayed, clarify when a file is used for input, e.g. add ` (FILE)` to the name.
+
 - v1.3
 
   - New

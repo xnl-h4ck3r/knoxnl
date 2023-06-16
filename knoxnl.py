@@ -97,7 +97,7 @@ def showOptions():
         if urlPassed:
             print(colored('-i: ' + args.input, 'magenta'), 'The URL to check with KNOXSS API.')
         else:
-            print(colored('-i: ' + args.input, 'magenta'), 'All URLs will be passed to KNOXSS API.')
+            print(colored('-i: ' + args.input + ' (FILE)', 'magenta'), 'All URLs will be passed to KNOXSS API.')
 
         if fileIsOpen:
             print(colored('-o: ' + args.output, 'magenta'), 'The output file where successful XSS payloads will be saved.')
@@ -109,6 +109,16 @@ def showOptions():
         
         print(colored('-X: ' + args.http_method, 'magenta'), 'The HTTP method checked by KNOXSS API.')
         
+        if args.http_method in ('POST','BOTH'):
+            if args.post_data != '':
+                print(colored('-pd: ' + args.post_data, 'magenta'), 'Data passed with a POST request.')
+            else:
+                if urlPassed:
+                    postData = args.input.split('?')[1]
+                    print(colored('-pd: ' + postData, 'magenta'), 'Data passed with a POST request.')
+                else:
+                    print(colored('-pd: {the URL query string}', 'magenta'), 'Data passed with a POST request.')
+            
         if args.headers != '':
             print(colored('-H: ' + args.headers, 'magenta'), 'HTTP Headers passed with requests.')
             
@@ -176,19 +186,34 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                      }
         
         # Replace any & in the URL with encoded value so we can add other data using &
-        data = targetUrl.replace('&', '%26')
+        targetData = targetUrl.replace('&', '%26')
+    
+        # If processing a POST
+        if method == 'POST' and args.http_method in ('POST','BOTH'):
+            postData = ''
+            
+            # If the --post-data argument was passed, use those values
+            if args.post_data != '':
+                postData = args.post_data.replace('&', '%26')
+                # If the target has query string parameters, remove them
+                if '?' in targetUrl:
+                    targetData = targetData.split('?')[0]
+                    
+            else: # post-data not passed
+                # If the target has parameters, i.e. ? then replace it with &post=, otherwise add &post= to the end
+                if '?' in targetUrl:
+                    postData = targetData.split('?')[1]
+                    targetData = targetData.split('?')[0]
+    
         # Then fully URL encode the whole URL
-        data = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in data)
-        data = 'target=' + data
+        targetData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in targetData)
+        data = 'target=' + targetData
         
-        # Change data depending on method
+        # Add the post data if necessary
         if method == 'POST':
-            # If the target has parameters, i.e. ? then replace is with &post=, otherwise add &post= to the end
-            if '?' in targetUrl:
-                data = data.replace('?', '&post=', 1)
-            else:
-                data = data + '&post='
-                
+            postData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in postData)
+            data = data + '&post=' + postData
+
         # Add the Advanced Filter Bypass option if required
         if args.advanced_filter_bypass:
             data = data + '&afb=1'
@@ -330,6 +355,15 @@ def processOutput(target, method, knoxssResponse):
                     if 'Read timed out' in knoxssResponseError:
                         knoxssResponseError = 'The target website timed out'      
                     
+                    # If method is POST, remove the query string from the target and show the post data in [ ] 
+                    if method == 'POST':
+                        querystring = target.split('?')[1]
+                        target = target.split('?')[0]
+                        if args.post_data:
+                            target = target + ' ['+args.post_data+']'
+                        else:
+                            target = target + ' [' + querystring + ']'
+                            
                     xssText = '[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError
                     if urlPassed or rateLimitExceeded:
                         print(colored(xssText, 'red'))
@@ -439,6 +473,13 @@ if __name__ == '__main__':
         help='Which HTTP method to use, values GET, POST or BOTH (default: GET). If BOTH is chosen, then a GET call will be made, followed by a POST.',
         default='GET',
         choices=['GET','POST','BOTH']
+    )
+    parser.add_argument(
+        '-pd',
+        '--post-data',
+        help='If a POST request is made, this is the POST data passed. It must be in the format \'param1=value&param2=value&param3=value\'. If this isn\'t passed and query string parameters are used, then these will be used as POST data if POST Method is requested.',
+        action='store',
+        default='',
     )
     parser.add_argument(
         '-H',
