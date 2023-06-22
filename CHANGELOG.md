@@ -1,5 +1,11 @@
 ## Changelog
 
+- v1.5
+
+  - New
+
+    - Added argument `-bp`/`--burp-piper` which can be used if calling from the Burp Piper extension.
+
 - v1.4
 
   - New

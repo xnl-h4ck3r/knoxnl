@@ -32,6 +32,7 @@ $ python setup.py install
 | -s   | --success-only           | Only show successful XSS payloads in the CLI output.                                                                                                                                                                                                       |
 | -p   | --processes              | Basic multithreading is done when getting requests for a file of URLs. This argument determines the number of processes (threads) used (default: 3)                                                                                                        |
 | -t   | --timeout                | How many seconds to wait for the KNOXSS API to respond before giving up (default: 180)                                                                                                                                                                     |
+| -bp  | --burp-piper             | Use if **knoxnl** is called from the Burp Piper extension, so that a request in **Burp Suite** proxy can be tested. See the [Using in Burp Suite Proxy](#using-in-burp-suite-proxy) section below.                                                         |
 | -v   | --verbose                | Verbose output                                                                                                                                                                                                                                             |
 | -h   | --help                   | show the help message and exit                                                                                                                                                                                                                             |
 
@@ -95,6 +96,56 @@ Pass cookies and an auth header for a single URL, and use the Advanced Filter By
 ```
 python3 knoxnl.py -i "https://bugbountytarget.com?a=one&b=2" -afb -H "Cookie: sessionId=9d7127ca-8966-4ae9-b20a-c2892a2f1167; lang=en;|Authorization: Basic eyJZb3UgZGlkbid0IHRoaW5rIHRoaXMgYSBnZW51aW5lIHRva2VuIGRpZCB5b3U/ISA7KSJ9"
 ```
+
+## Using in Burp Suite Proxy
+
+To be able to use **knoxnl** to test a request in Burp Suite Proxy, we can use it in conjunction with the amazing `Piper` extension by András Veres-Szentkirályi. Follow the steps below to set it up:
+
+1. Go to the **BApp Store** in Burp and install the **Piper** extension.
+2. Go to the **Piper** tab and click the **Context menu items** sub tab, then click the **Add** button.
+3. In the **Add menu item** dialog box, enter the **Name** as `knoxnl` and change the **Can handle...** drop down to `HTTP requests only`.
+4. Change both the **Minimum required number of selected items** and **Maximum allowed number of selected items** values to `1`.
+5. Click the **Edit...** button for **Command** and the **Command invocation editor** dialog box should be displayed.
+6. Check the **Pass HTTP headers to command** check-box.
+7. If you are on a Linux machine, do the following:
+   - In the **Command line parameters** box you enter the command and arguments one line at a time.
+   - You want to enter a command of `/my/path/to/python3 /my/path/to/knoxnl.py --burp-piper -X BOTH` for example, providing the full path of the `python3` binary and `knoxnl.py` file.
+   - So in the **Command line parameters** input field it would look like this:
+     ```
+     /my/path/to/python3
+     /my/path/to/knoxnl.py
+     --burp-piper
+     -X
+     BOTH
+     ```
+   - You may want to add other **knoxnl** arguments too, such as `-A your_knoxss_api_key`, `-t 60`, etc. Remember to put the argument and the value on separate lines.
+8. If you are on a Windows machine using WSL, do the following:
+   - In the **Command line parameters** box you enter the command and arguments one line at a time.
+   - You want to enter a command of `wsl -e /my/path/to/python3 /my/path/to/knoxnl.py --burp-piper -X BOTH` for example, providing the full path of the `python3` binary and `knoxnl.py` file.
+   - So in the **Command line parameters** input field it would look like this:
+     ```
+     wsl
+     -e
+     /my/path/to/python3
+     /my/path/to/knoxnl.py
+     --burp-piper
+     -X
+     BOTH
+     ```
+   - You may want to add other **knoxnl** arguments too, such as `-A your_knoxss_api_key`, `-t 60`, etc. Remember to put the argument and the value on separate lines.
+9. Click the **OK** button on the **Command invocation editor** dialog box.
+10. Click the **OK** button on the **Edit menu item** dialog box.
+
+Piper is now set up to be able to call **knoxnl**.
+
+To call **knoxnl** for a particular request, follow these steps:
+
+1. Right click on a Request and select **Extensions -> Piper -> Process 1 request -> knoxnl**.
+2. A window should open with the title **Piper - knoxnl**.
+3. **IMPORTANT NOTE:** This **Piper** window stays blank until the command is complete (which could be up to 180 seconds - the default value of `-t`/`--timeout`).
+4. When complete, it should show the **knxonl** output in the same way as on the command line version. Just close the window when you have finished.
+
+With **Piper** you can also send the **knoxnl** request to a queue by selecting **Extensions -> Piper -> Add to queue**. You can then go to the **Queue** sub tab under **Piper** and see the request. Right click the request to send to **knoxnl**.
 
 ## Issues
 

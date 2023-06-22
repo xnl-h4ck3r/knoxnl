@@ -13,7 +13,7 @@ from termcolor import colored
 import yaml
 import json
 import os
-import urllib
+import sys
 
 # Global variables
 stopProgram = False
@@ -94,10 +94,13 @@ def showOptions():
         print(colored('KNOXSS API Url:', 'magenta'), API_URL)
         print(colored('KNOXSS API Key:', 'magenta'), API_KEY)      
         
-        if urlPassed:
-            print(colored('-i: ' + args.input, 'magenta'), 'The URL to check with KNOXSS API.')
+        if args.burp_piper:
+            print(colored('-i: ' + args.input, 'magenta'), 'Request passed from Burp Piper Extension')
         else:
-            print(colored('-i: ' + args.input + ' (FILE)', 'magenta'), 'All URLs will be passed to KNOXSS API.')
+            if urlPassed:
+                print(colored('-i: ' + args.input, 'magenta'), 'The URL to check with KNOXSS API.')
+            else:
+                print(colored('-i: ' + args.input + ' (FILE)', 'magenta'), 'All URLs will be passed to KNOXSS API.')
 
         if fileIsOpen:
             print(colored('-o: ' + args.output, 'magenta'), 'The output file where successful XSS payloads will be saved.')
@@ -305,23 +308,58 @@ def processInput():
     global urlPassed, latestApiCalls, stopProgram, rateLimitExceeded
     try:
         latestApiCalls = 'Unknown'
-        
-        # If the -i (--input) can be a standard file (text file with URLs per line),
-        # if the value passed is not a valid file, then assume it is an individual URL
-        inputArg = args.input
-        urlPassed = False
-        try:
-            inputFile = open(inputArg, 'r')
-            firstLine = inputFile.readline()
-        except IOError:
-            urlPassed = True
-        except Exception as e:
-            print(colored('ERROR processInput 2: ' + str(e), 'red'))
+
+        # if the Burp Piper Extension argument was passed, assume the input is passed by stdin 
+        if args.burp_piper:
+            try:
+                # Get URL and 
+                firstLine = sys.stdin.readline()
+                # Get HOST header
+                secondLine = sys.stdin.readline()
+                args.input = 'https://'+secondLine.split(' ')[1].strip()+firstLine.split(' ')[1].strip()
+                # Get first header after HOST
+                headers = ''
+                header = sys.stdin.readline()
+                # Get all headers
+                while header.strip() != '':
+                    if header.lower().find('cookie') >= 0 or header.lower().find('api') >= 0 or header.lower().find('auth') >= 0:
+                        headers = headers + header.strip()+'|'
+                    header = sys.stdin.readline()
+                args.headers = headers.rstrip('|')
+                # Get the POST body
+                postBody = ''
+                postBodyLine = sys.stdin.readline()
+                while postBodyLine.strip() != '':
+                    postBody = postBody + postBodyLine.strip()
+                    postBodyLine = sys.stdin.readline()
+                postBody = postBody.replace('&', '%26')
+                args.post_data = postBody
+                
+            except Exception as e:
+                print(colored('ERROR: Burp Piper Extension input expected: ' + str(e), 'red'))
+                exit()
+        else:
+            # Check that the -i argument was passed
+            if not args.input:
+                print(colored('ERROR: The -i / --input argument must be passed (unless calling from Burp Piper extension with -bp / --burp-piper). The input can be a single URL or a file or URLs.', 'red'))
+                exit()
+                
+            # If the -i (--input) can be a standard file (text file with URLs per line),
+            # if the value passed is not a valid file, then assume it is an individual URL
+            urlPassed = False
+            try:
+                inputFile = open(args.input, 'r')
+                firstLine = inputFile.readline()
+            except IOError:
+                urlPassed = True
+            except Exception as e:
+                print(colored('ERROR processInput 2: ' + str(e), 'red'))
         
         if verbose():
             showOptions()
         
         print(colored('Calling KNOXSS API...\n', 'cyan'))
+        inputArg = args.input
         if urlPassed:
             processUrl(inputArg)
         else: # It's a file of URLs
@@ -451,7 +489,6 @@ if __name__ == '__main__':
         '--input',
         action='store',
         help='Input to send to KNOXSS API: a single URL, or file of URLs.',
-        required=True,
     )
     parser.add_argument(
         '-o',
@@ -529,6 +566,12 @@ if __name__ == '__main__':
         default=DEFAULT_TIMEOUT,
         type=int,
         metavar="<seconds>",
+    )
+    parser.add_argument(
+        '-bp',
+        '--burp-piper',
+        action='store_true',
+        help='Set if called from the Burp Piper extension.',
     )
     parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
     args = parser.parse_args()
