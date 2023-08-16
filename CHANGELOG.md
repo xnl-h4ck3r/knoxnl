@@ -1,5 +1,15 @@
 ## Changelog
 
+- v2.0
+
+  - New
+
+    - Improve installation method to allow `pip` and `pipx`.
+
+  - Changed
+
+    - Only output HTML with `Something went wrong:` message if the error is from `knoxss``. Don't output messages like when there is no internet connection.
+
 - v1.5
 
   - New

@@ -8,12 +8,20 @@ This was inspired by the ["knoxssme" tool](https://github.com/edoardottt/lit-bb-
 
 ## Installation
 
-knoxnl supports **Python 3**.
+`knoxnl` supports **Python 3**.
 
+Install `knoxnl` in default(global) python environment.
+
+```bash
+$ pip install git+https://github.com/xnl-h4ck3r/knoxnl.git
 ```
-$ git clone https://github.com/xnl-h4ck3r/knoxnl.git
-$ cd knoxnl
-$ python setup.py install
+
+### pipx
+
+Quick setup in isolated python environment using [pipx](https://pypa.github.io/pipx/)
+
+```bash
+$ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 ```
 
 ## Usage
@@ -38,7 +46,7 @@ $ python setup.py install
 
 ## config.yml
 
-The `config.yml` file has the keys which can be updated to suit your needs:
+The `config.yml` file (in the global location based on the OS, e.g. `~/.config/knoxnl.config.yml`) has the keys which can be updated to suit your needs:
 
 - `API_URL` - This can be set to the KNOSS API endpoint, if and when the version number is increased
 - `API_KEY` - Your KNOXSS API key that you will have generated on https://knoxss.me/
@@ -68,13 +76,13 @@ The `config.yml` file has the keys which can be updated to suit your needs:
 Pass a single URL:
 
 ```
-python3 knoxnl.py -i "https://brutelogic.com.br/xss.php"
+knoxnl -i "https://brutelogic.com.br/xss.php"
 ```
 
 Or a file of URLs:
 
 ```
-python3 knoxnl.py -i ~/urls.txt
+knoxnl -i ~/urls.txt
 ```
 
 ### Detailed
@@ -82,19 +90,19 @@ python3 knoxnl.py -i ~/urls.txt
 Test a single URL for both GET and POST. if it is successful, the payload will be output to `output.txt`. In this case, an API key is provided, overriding any in `config.yml` if it exists. Also, the parameter value has been passed as `[XSS]` which will request the KNOXSS API to enable Flash Mode which performs a single quick XSS Polyglot based test:
 
 ```
-python3 knoxnl.py -i "https://brutelogic.com.br/xss.php?b3=[XSS]" -X BOTH -o output.txt -A 93c864f5-af3a-4f6a-8b25-8662bc8b5ab6
+knoxnl -i "https://brutelogic.com.br/xss.php?b3=[XSS]" -X BOTH -o output.txt -A 93c864f5-af3a-4f6a-8b25-8662bc8b5ab6
 ```
 
 Test a single URL for POST and pass post body data:
 
 ```
-python3 knoxnl.py -i "https://brutelogic.com.br/xss.php" -X POST -pd user=xnl -o output.txt
+knoxnl -i "https://brutelogic.com.br/xss.php" -X POST -pd user=xnl -o output.txt
 ```
 
 Pass cookies and an auth header for a single URL, and use the Advanced Filter Bypass option:
 
 ```
-python3 knoxnl.py -i "https://bugbountytarget.com?a=one&b=2" -afb -H "Cookie: sessionId=9d7127ca-8966-4ae9-b20a-c2892a2f1167; lang=en;|Authorization: Basic eyJZb3UgZGlkbid0IHRoaW5rIHRoaXMgYSBnZW51aW5lIHRva2VuIGRpZCB5b3U/ISA7KSJ9"
+knoxnl -i "https://bugbountytarget.com?a=one&b=2" -afb -H "Cookie: sessionId=9d7127ca-8966-4ae9-b20a-c2892a2f1167; lang=en;|Authorization: Basic eyJZb3UgZGlkbid0IHRoaW5rIHRoaXMgYSBnZW51aW5lIHRva2VuIGRpZCB5b3U/ISA7KSJ9"
 ```
 
 ## Using in Burp Suite Proxy
@@ -109,11 +117,10 @@ To be able to use **knoxnl** to test a request in Burp Suite Proxy, we can use i
 6. Check the **Pass HTTP headers to command** check-box.
 7. If you are on a Linux machine, do the following:
    - In the **Command line parameters** box you enter the command and arguments one line at a time.
-   - You want to enter a command of `/my/path/to/python3 /my/path/to/knoxnl.py --burp-piper -X BOTH` for example, providing the full path of the `python3` binary and `knoxnl.py` file.
+   - You want to enter a command of `/my/path/to/python3 /my/path/to/knoxnl.py --burp-piper -X BOTH` for example, providing the full path of the `knoxnl` binary file.
    - So in the **Command line parameters** input field it would look like this:
      ```
-     /my/path/to/python3
-     /my/path/to/knoxnl.py
+     /my/path/to/knoxnl
      --burp-piper
      -X
      BOTH
@@ -121,13 +128,12 @@ To be able to use **knoxnl** to test a request in Burp Suite Proxy, we can use i
    - You may want to add other **knoxnl** arguments too, such as `-A your_knoxss_api_key`, `-t 60`, etc. Remember to put the argument and the value on separate lines.
 8. If you are on a Windows machine using WSL, do the following:
    - In the **Command line parameters** box you enter the command and arguments one line at a time.
-   - You want to enter a command of `wsl -e /my/path/to/python3 /my/path/to/knoxnl.py --burp-piper -X BOTH` for example, providing the full path of the `python3` binary and `knoxnl.py` file.
+   - You want to enter a command of `wsl -e /my/path/to/knoxnl --burp-piper -X BOTH` for example, providing the full path of the `knoxnl.py` binary file.
    - So in the **Command line parameters** input field it would look like this:
      ```
      wsl
      -e
-     /my/path/to/python3
-     /my/path/to/knoxnl.py
+     /my/path/to/knoxnl
      --burp-piper
      -X
      BOTH
