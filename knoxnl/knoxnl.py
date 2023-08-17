@@ -157,7 +157,7 @@ def getConfig():
         if configPath == '':
             configPath = 'config.yml'
         else:
-            configPath = configPath + '/config.yml'
+            configPath = Path(configPath / 'config.yml')
         config = yaml.safe_load(open(configPath))
         try:
             API_URL = config.get('API_URL')
