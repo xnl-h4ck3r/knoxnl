@@ -490,7 +490,8 @@ def processes_type(x):
                                 
 # Run knoXnl
 def main():
-
+    global args, latestApiCalls, rateLimitExceeded, urlPassed, successCount, todoFile
+    
     # Tell Python to run the handler() function when SIGINT is received
     signal(SIGINT, handler)
 
@@ -616,7 +617,7 @@ def main():
             latestApiCalls = 'Unknown'
         print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
         
-        # If a file was passed, the API limit was reached, and the output file was specifed
+        # If a file was passed, the API limit was reached, and the output file was specified
         # let the user know about the todo file
         if rateLimitExceeded and not urlPassed and args.output != "":
             print(colored('The unchecked URLs have been written to','cyan'),colored(args.output+'.todo\n', 'white'))
