@@ -489,7 +489,7 @@ def processes_type(x):
     return x
                                 
 # Run knoXnl
-if __name__ == '__main__':
+def main():
 
     # Tell Python to run the handler() function when SIGINT is received
     signal(SIGINT, handler)
@@ -644,3 +644,6 @@ if __name__ == '__main__':
 
     except Exception as e:
         print(colored('ERROR main 1: ' + str(e), 'red'))
+        
+if __name__ == '__main__':
+    main()
