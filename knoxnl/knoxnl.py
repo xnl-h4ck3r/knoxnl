@@ -490,7 +490,7 @@ def processes_type(x):
                                 
 # Run knoXnl
 def main():
-    global args, latestApiCalls, rateLimitExceeded, urlPassed, successCount, todoFile
+    global args, latestApiCalls, rateLimitExceeded, urlPassed, successCount, todoFile, fileIsOpen
     
     # Tell Python to run the handler() function when SIGINT is received
     signal(SIGINT, handler)
