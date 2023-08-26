@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.1
+
+  - Changed
+
+    - Remove code that encodes the whole URL as this prevents successful XSS being found in some cases.
+
 - v2.0
 
   - New

@@ -222,12 +222,12 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     targetData = targetData.split('?')[0]
     
         # Then fully URL encode the whole URL
-        targetData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in targetData)
+        #targetData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in targetData)
         data = 'target=' + targetData
         
         # Add the post data if necessary
         if method == 'POST':
-            postData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in postData)
+            #postData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in postData)
             data = data + '&post=' + postData
 
         # Add the Advanced Filter Bypass option if required
