@@ -115,7 +115,7 @@ To be able to use **knoxnl** to test a request in Burp Suite Proxy, we can use i
 4. Change both the **Minimum required number of selected items** and **Maximum allowed number of selected items** values to `1`.
 5. Click the **Edit...** button for **Command** and the **Command invocation editor** dialog box should be displayed.
 6. Check the **Pass HTTP headers to command** check-box.
-7. If you are on a Linux machine, do the following:
+7. If you are on a Linux machine, or Windows without WSL, do the following:
    - In the **Command line parameters** box you enter the command and arguments one line at a time.
    - You want to enter a command of `/my/path/to/python3 /my/path/to/knoxnl.py --burp-piper -X BOTH` for example, providing the full path of the `knoxnl` binary file.
    - So in the **Command line parameters** input field it would look like this:

@@ -1,5 +1,12 @@
 ## Changelog
 
+- v2.2
+
+  - Changed
+
+    - Sometimes the console can't display unicode characters. When displaying strings with the emoji 🤘, if an error occurs, try writing without.
+    - Change description for setting up with Piper to clarify the Linux way is also for Windows if NOT using WSL.
+
 - v2.1
 
   - Changed

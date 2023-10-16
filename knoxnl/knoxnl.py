@@ -138,7 +138,11 @@ def showOptions():
 
 # If an API key wasn't supplied, or was invalid, then point the user to https://knoxss.me
 def needApiKey():
-    print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe? 🤘\n', 'green'))  
+    # If the console can't display 🤘 then an error will be raised to try without
+    try:
+        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe? 🤘\n', 'green')) 
+    except:
+        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe?\n', 'green')) 
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
@@ -623,11 +627,18 @@ def main():
             print(colored('The unchecked URLs have been written to','cyan'),colored(args.output+'.todo\n', 'white'))
             
         # Report if any successful XSS was found this time
-        if successCount > 0:
-            print(colored('🤘 '+str(successCount)+' successful XSS found! 🤘\n','green'))
-        else:
-            print(colored('No successful XSS found... better luck next time! 🤘\n','cyan'))
-
+        # If the console can't display 🤘 then an error will be raised to try without
+        try:
+            if successCount > 0:
+                print(colored('🤘 '+str(successCount)+' successful XSS found! 🤘\n','green'))
+            else:
+                print(colored('No successful XSS found... better luck next time! 🤘\n','cyan'))
+        except:
+            if successCount > 0:
+                print(colored(str(successCount)+' successful XSS found!\n','green'))
+            else:
+                print(colored('No successful XSS found... better luck next time!\n','cyan'))
+                
         # If the output was sent to a file, close the file
         if fileIsOpen:
             try:
