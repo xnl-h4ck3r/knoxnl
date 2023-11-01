@@ -1,5 +1,13 @@
 ## Changelog
 
+- v2.3
+
+  - Changes
+
+    - Change the processing of a file of URLs by running a batch of 1-5 (determines by the `-p` argument) at a time per minute. This is required by the KNOXSS API, and will result is getting blocked by their WAF if not followed.
+    - Change the number of the daily limit of KNOXSS API calls from 3335 to 5000 in README. This changed after a KNOXSS server upgrade.
+    - Show a specific error if the API rate limit is reached, and also if the user gets 403 from the API
+
 - v2.2
 
   - Changed

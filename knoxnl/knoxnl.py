@@ -9,6 +9,8 @@ import requests
 import argparse
 from signal import SIGINT, signal
 import multiprocessing.dummy as mp
+import multiprocessing
+import time
 from termcolor import colored
 import yaml
 import json
@@ -382,12 +384,22 @@ def processInput():
         else: # It's a file of URLs
             try:
                 inputFile = open(inputArg, 'r')
+                urlsToProcess = []
                 with inputFile as f:
-                    if not stopProgram:
-                        p = mp.Pool(args.processes)
-                        p.map(processUrl, f)
-                        p.close()
-                        p.join()
+                    urlsToProcess = f.readlines();
+                    # if not stopProgram:
+                    #     p = mp.Pool(args.processes)
+                    #     p.map(processUrl, f)
+                    #     p.close()
+                    #     p.join()
+                while urlsToProcess:
+                    batch_size = min(args.processes, len(urlsToProcess))
+                    if batch_size > 0:
+                        batch = urlsToProcess[:batch_size]
+                        process_batch(batch)
+                        urlsToProcess = urlsToProcess[batch_size:]
+                        if len(urlsToProcess) > 0:
+                            time.sleep(60)  # Sleep for 1 minute before starting the next batch
                 inputFile.close()
             except Exception as e:
                 print(colored('ERROR processInput 3: ' + str(e), 'red'))
@@ -395,6 +407,10 @@ def processInput():
     except Exception as e:
         print(colored('ERROR processInput 1: ' + str(e), 'red'))
 
+def process_batch(urls):
+    with multiprocessing.Pool(processes=args.processes) as pool:
+        pool.map(processUrl, urls)
+        
 def processOutput(target, method, knoxssResponse):
     global latestApiCalls, successCount, outFile
     try:
@@ -405,7 +421,12 @@ def processOutput(target, method, knoxssResponse):
             if knoxssResponse.Error != 'none':
                 if not args.success_only:
                     knoxssResponseError = knoxssResponse.Error
-                    
+                    # If there is a 403, it maybe because the users IP is blocked on the KNOXSS firewall
+                    if knoxssResponse.Code == "403":
+                       knoxssResponseError = '403 Forbidden - Check http://knoxss.me manually and if you are blocked, contact Twitter/X @KN0X55 or brutelogic@null.net'
+                    # See if rate limit error given
+                    if knoxssResponseError == "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))":
+                        knoxssResponseError = 'Rate limit reached. Temporarily blocked'
                     # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
                     if 'InvalidChunkLength' in knoxssResponseError:
                         knoxssResponseError = 'The API Timed Out'
