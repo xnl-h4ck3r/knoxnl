@@ -28,7 +28,7 @@ outFile = None
 fileIsOpen = False
 todoFile = None
 
-DEFAULT_API_URL = 'https://knoxss.me/api/v3'
+DEFAULT_API_URL = 'https://api.knoxss.pro'
 
 # The default timeout for KNOXSS API to respond in seconds
 DEFAULT_TIMEOUT = 180

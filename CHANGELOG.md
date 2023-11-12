@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.4
+
+  - Changed
+
+    - Change the default KNOXSS API URL to the new version after the upgrade.
+
 - v2.3
 
   - Changes
