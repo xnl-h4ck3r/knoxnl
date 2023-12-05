@@ -46,7 +46,7 @@ $ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 
 ## config.yml
 
-The `config.yml` file (in the global location based on the OS, e.g. `~/.config/knoxnl.config.yml`) has the keys which can be updated to suit your needs:
+The `config.yml` file (in the global location based on the OS, e.g. `~/.config/knoxnl/config.yml`) has the keys which can be updated to suit your needs:
 
 - `API_URL` - This can be set to the KNOSS API endpoint, if and when it is changed
 - `API_KEY` - Your KNOXSS API key that you will have generated on https://knoxss.me/
