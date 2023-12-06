@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.5
+
+  - Changed
+
+    - Fix a bug from [Issue #5](https://github.com/xnl-h4ck3r/knoxnl/issues/5) that prevented output being written.
+
 - v2.4
 
   - Changed
