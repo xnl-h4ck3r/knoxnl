@@ -37,15 +37,6 @@ DEFAULT_TIMEOUT = 180
 API_URL = ''
 API_KEY = ''
 
-# Define colours
-class tc:
-    NORMAL = '\x1b[39m'
-    RED = '\x1b[31m'
-    GREEN = '\x1b[32m'
-    YELLOW = '\x1b[33m'
-    MAGENTA = '\x1b[35m'
-    CYAN = '\x1b[36m'
-
 # Object for an KNOXSS API response
 class knoxss:
     Code = ''
@@ -57,12 +48,12 @@ class knoxss:
     
 def showBanner():
     print()
-    print(tc.NORMAL+" _           "+tc.RED+"_ ___    "+tc.YELLOW+"__"+tc.CYAN+"      _")
-    print(tc.NORMAL+"| | ___ __   "+tc.RED+"V"+tc.NORMAL+"_"+tc.RED+"V\ \  "+tc.YELLOW+"/ /"+tc.GREEN+"_ __"+tc.CYAN+" | | ")
-    print(tc.NORMAL+"| |/ / '_ \ / _ \\"+tc.RED+"\ \\"+tc.YELLOW+"/ /"+tc.GREEN+"| '_ \\"+tc.CYAN+"| | ")
-    print(tc.NORMAL+"|   <| | | | (_) "+tc.RED+"/ /"+tc.YELLOW+"\ \\"+tc.GREEN+"| | | |"+tc.CYAN+" | ")
-    print(tc.NORMAL+"|_|\_\_| |_|\___"+tc.RED+"/_/  "+tc.YELLOW+"\_\\"+tc.GREEN+"_| |_|"+tc.CYAN+"_| ")
-    print(tc.MAGENTA+"                 by @Xnl-h4ck3r "+tc.NORMAL)
+    print(" _           "+colored("_ ___    ","red")+colored("__","yellow")+colored("      _","cyan"))
+    print("| | ___ __   "+colored("V","red")+"_"+colored(r"V\ \  ","red")+colored("/ /","yellow")+colored("_ __","green")+colored(" | | ","cyan"))
+    print(r"| |/ / '_ \ / _ \ "[:-1]+colored(r"\ \ "[:-1],"red")+colored("/ /","yellow")+colored(r"| '_ \ "[:-1],"green")+colored("| | ","cyan"))
+    print("|   <| | | | (_) "+colored("/ /","red")+colored(r"\ \ "[:-1],"yellow")+colored("| | | |","green")+colored(" | ","cyan"))
+    print(r"|_|\_\_| |_|\___"+colored("/_/  ","red")+colored(r"\_\ "[:-1],"yellow")+colored("_| |_|","green")+colored("_| ","cyan"))
+    print(colored("                 by @Xnl-h4ck3r ","magenta"))
     print()
 
 # Functions used when printing messages dependant on verbose options
