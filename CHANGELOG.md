@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.7
+
+  - Changed
+
+    - Back out changes from v2.3 that changed the processing of a file of URLs by running a batch of 1-5 (determines by the `-p` argument) at a time per minute. This has caused the messages to be incorrect when running for a file or URLs.
+
 - v2.6
 
   - Changed

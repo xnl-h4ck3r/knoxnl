@@ -375,22 +375,22 @@ def processInput():
         else: # It's a file of URLs
             try:
                 inputFile = open(inputArg, 'r')
-                urlsToProcess = []
+                #urlsToProcess = []
                 with inputFile as f:
-                    urlsToProcess = f.readlines();
-                    # if not stopProgram:
-                    #     p = mp.Pool(args.processes)
-                    #     p.map(processUrl, f)
-                    #     p.close()
-                    #     p.join()
-                while urlsToProcess:
-                    batch_size = min(args.processes, len(urlsToProcess))
-                    if batch_size > 0:
-                        batch = urlsToProcess[:batch_size]
-                        process_batch(batch)
-                        urlsToProcess = urlsToProcess[batch_size:]
-                        if len(urlsToProcess) > 0:
-                            time.sleep(60)  # Sleep for 1 minute before starting the next batch
+                    #urlsToProcess = f.readlines();
+                    if not stopProgram:
+                        p = mp.Pool(args.processes)
+                        p.map(processUrl, f)
+                        p.close()
+                        p.join()
+                # while urlsToProcess:
+                #     batch_size = min(args.processes, len(urlsToProcess))
+                #     if batch_size > 0:
+                #         batch = urlsToProcess[:batch_size]
+                #         process_batch(batch)
+                #         urlsToProcess = urlsToProcess[batch_size:]
+                #         if len(urlsToProcess) > 0:
+                #             time.sleep(60)  # Sleep for 1 minute before starting the next batch
                 inputFile.close()
             except Exception as e:
                 print(colored('ERROR processInput 3: ' + str(e), 'red'))
