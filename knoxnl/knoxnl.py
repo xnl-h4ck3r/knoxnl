@@ -613,7 +613,7 @@ def main():
 
     # If --version was passed, display version and exit
     if args.version:
-        print(colored('knoxnl - v' + __import__('knoxnl').__version__,'cyan'))
+        print(colored('knoxnl - v' + __version__,'cyan'))
         sys.exit()
         
     # Get the config settings from the config.yml file
