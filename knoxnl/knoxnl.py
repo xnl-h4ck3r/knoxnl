@@ -17,7 +17,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from __init__ import __version__
+from . import __version__
 
 # Global variables
 stopProgram = False
