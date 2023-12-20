@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v2.7
+## About - v2.8
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.me/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.me and subscribe!
@@ -42,6 +42,7 @@ $ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 | -t   | --timeout                | How many seconds to wait for the KNOXSS API to respond before giving up (default: 180)                                                                                                                                                                     |
 | -bp  | --burp-piper             | Use if **knoxnl** is called from the Burp Piper extension, so that a request in **Burp Suite** proxy can be tested. See the [Using in Burp Suite Proxy](#using-in-burp-suite-proxy) section below.                                                         |
 | -v   | --verbose                | Verbose output                                                                                                                                                                                                                                             |
+|      | --version                | Show current version number.                                                                                                                                                                                                                               |
 | -h   | --help                   | show the help message and exit                                                                                                                                                                                                                             |
 
 ## config.yml

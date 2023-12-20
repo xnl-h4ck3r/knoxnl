@@ -17,6 +17,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from __init__ import __version__
 
 # Global variables
 stopProgram = False
@@ -605,10 +606,16 @@ def main():
         help='Set if called from the Burp Piper extension.',
     )
     parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
+    parser.add_argument('--version', action='store_true', help="Show version number")
     args = parser.parse_args()
 
     showBanner()
 
+    # If --version was passed, display version and exit
+    if args.version:
+        print(colored('knoxnl - v' + __import__('knoxnl').__version__,'cyan'))
+        sys.exit()
+        
     # Get the config settings from the config.yml file
     getConfig()
 

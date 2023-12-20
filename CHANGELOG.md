@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.8
+
+  - New
+
+    - Add `--version` argument to see the current version of knoxnl.
+
 - v2.7
 
   - Changed
