@@ -37,6 +37,7 @@ DEFAULT_TIMEOUT = 180
 # Yaml config values
 API_URL = ''
 API_KEY = ''
+DISCORD_WEBHOOK = ''
 
 # Object for an KNOXSS API response
 class knoxss:
@@ -87,7 +88,8 @@ def showOptions():
         print(colored('Selected config and settings:', 'cyan'))
         
         print(colored('KNOXSS API Url:', 'magenta'), API_URL)
-        print(colored('KNOXSS API Key:', 'magenta'), API_KEY)      
+        print(colored('KNOXSS API Key:', 'magenta'), API_KEY)    
+        print(colored('Discord Webhook:', 'magenta'), DISCORD_WEBHOOK)   
         
         if args.burp_piper:
             print(colored('-i: ' + args.input, 'magenta'), 'Request passed from Burp Piper Extension')
@@ -140,7 +142,7 @@ def needApiKey():
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
-    global API_URL, API_KEY
+    global API_URL, API_KEY, DISCORD_WEBHOOK
     try:
         
         # Put config in global location based on the OS.
@@ -176,6 +178,16 @@ def getConfig():
             print(colored('Unable to read "API_KEY" from config.yml; We need an API key! - ' + str(e), 'red'))
             needApiKey()
             quit()
+        
+        # Set the Discord webhook. If passed with argument -dw / --discord-webhook then this will override the config value
+        if args.discord_webhook != '':
+            DISCORD_WEBHOOK = args.discord_webhook
+        else:
+            try:
+                DISCORD_WEBHOOK = config.get('DISCORD_WEBHOOK').replace('YOUR_WEBHOOK','')
+            except Exception as e:
+                DISCORD_WEBHOOK = ''
+        
     except Exception as e:
         try:
             if args.api_key == '':
@@ -186,7 +198,7 @@ def getConfig():
                 API_URL = DEFAULT_API_URL
                 API_KEY = args.api_key
                 print(colored('Unable to read config.yml; using default API URL and passed API Key', 'cyan'))
-                
+            DISCORD_WEBHOOK = args.discord_webhook    
         except Exception as e:
             print(colored('ERROR getConfig: ' + str(e), 'red'))
             
@@ -402,6 +414,27 @@ def processInput():
 def process_batch(urls):
     with multiprocessing.Pool(processes=args.processes) as pool:
         pool.map(processUrl, urls)
+
+def discordNotify(target,poc):
+    global DISCORD_WEBHOOK
+    try:
+        embed = {
+            "description": "```\n"+poc+"\n```",
+            "title": "KNOXSS POC for "+target
+        }
+        data = {
+            "content": "XSS found by knoxnl! 🤘",
+            "username": "knoxnl",
+            "embeds": [embed],
+        }
+        try:
+            result = requests.post(DISCORD_WEBHOOK, json=data)
+            if 300 <= result.status_code < 200:
+                print(colored('WARNING: Failed to send notification to Discord - ' + result.json(), 'yellow'))
+        except Exception as e:
+            print(colored('WARNING: Failed to send notification to Discord - ' + str(e), 'yellow'))
+    except Exception as e:
+        print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
         
 def processOutput(target, method, knoxssResponse):
     global latestApiCalls, successCount, outFile
@@ -454,6 +487,10 @@ def processOutput(target, method, knoxssResponse):
                     else:
                         print(colored(xssText, 'green'), colored('['+latestApiCalls+']','white'))
                     successCount = successCount + 1
+                    # Send a notification to discord if a webook was provided
+                    if DISCORD_WEBHOOK != '':
+                        discordNotify(target,knoxssResponse.PoC)
+                    # Write the successful XSS details to file
                     if fileIsOpen:
                         outFile.write(xssText + '\n')
                 else:
@@ -604,6 +641,13 @@ def main():
         '--burp-piper',
         action='store_true',
         help='Set if called from the Burp Piper extension.',
+    )
+    parser.add_argument(
+        '-dw',
+        '--discord-webhook',
+        help='The Discord Webhook to send successful XSS notifications to. This will be used instead of the value in config.yml',
+        action='store',
+        default='',
     )
     parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
     parser.add_argument('--version', action='store_true', help="Show version number")

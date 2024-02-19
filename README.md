@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v2.8
+## About - v2.9
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.me/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.me and subscribe!
@@ -51,6 +51,7 @@ The `config.yml` file (in the global location based on the OS, e.g. `~/.config/k
 
 - `API_URL` - This can be set to the KNOXSS API endpoint, if and when it is changed
 - `API_KEY` - Your KNOXSS API key that you will have generated on https://knoxss.me/
+- `DISCORD_WEBHOOK` - Your discord webhook URL if you want to be notified of successful XSS
 
 ## Important Notes from KNOXSS API Guidelines
 
@@ -168,6 +169,10 @@ Single URL:
 File of URLs checked with GET and POST:
 
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/example2.png"></center>
+
+Example Discord notification:
+
+<center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/discord.png"></center>
 
 Good luck and good hunting!
 If you really love the tool (or any others), or they helped you find an awesome bounty, consider [BUYING ME A COFFEE!](https://ko-fi.com/xnlh4ck3r) ☕ (I could use the caffeine!)

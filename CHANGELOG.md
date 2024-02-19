@@ -1,5 +1,12 @@
 ## Changelog
 
+- v2.9
+
+  - New
+
+    - Add `DISCORD_WEBHOOK` to `config.yml` to specify Discord webhook URL for alerts. If a webhook has been given, details of a successful XSS will be sent to Discord.
+    - Add `-dw`/`--discord-webhook` argument. This can be passed in the command to specify a Discord webhook and will override the value in the `config.yml` file.
+
 - v2.8
 
   - New
