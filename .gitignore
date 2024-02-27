@@ -2,3 +2,4 @@ knoxnl.egg-info
 dist/
 build/
 __pycache__
+*.todo

@@ -1,5 +1,21 @@
 ## Changelog
 
+- v2.10
+
+  - New
+
+    - If a URL is provided without a scheme, then add `https://` as default and warn the user.
+    - Add `*.todo` to `.gitignore` file.
+
+  - Changed
+
+    - The `.todo` file will not just be written if the `-o` option is used. If an input file is passed then when the APi Rate Limit is hit, or the Service Unavailable message is given, the remaining URLs will be written to a `.todo` file.
+    - The `.todo` file will be named with the name of the input file plus a timestamp, e.g. `inputfile.YYYMMDD_HHMMSS.todo`. It was previously the same as the output file name plus `.todo`.
+    - Limit the number of successful API calls made per minute (requested by @KN0X55).
+    - Fix a bug that sometimes prevented the `API calls made so far today` being displayed.
+    - If the message `service unavailable` is returned from the API, the process will stop, and the `.todo` file will be written.
+    - Show more specific error messages.
+
 - v2.9
 
   - New

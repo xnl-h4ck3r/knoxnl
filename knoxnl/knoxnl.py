@@ -18,6 +18,7 @@ import os
 import sys
 from pathlib import Path
 from . import __version__
+from datetime import datetime
 
 # Global variables
 stopProgram = False
@@ -28,6 +29,7 @@ successCount = 0
 outFile = None
 fileIsOpen = False
 todoFile = None
+currentCount = {}
 
 DEFAULT_API_URL = 'https://api.knoxss.pro'
 
@@ -250,7 +252,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
             encHeaders = headers.replace(' ','%20')
             encHeaders = encHeaders.replace('|','%0D%0A')
             data = data + '&auth=' + encHeaders
-            
+
         # Make a request to the KNOXSS API
         try:
             try:
@@ -288,14 +290,16 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                 if knoxssResponse.Calls == '0':
                     knoxssResponse.Calls = 'Unknown'
                 knoxssResponse.Error = str(jsonResponse['Error'])
-                if knoxssResponse.Error == 'API rate limit exceeded.':
-                    knoxssResponse.Calls = tc.RED+'API rate limit exceeded!'+tc.RED
+                if knoxssResponse.Error == 'API rate limit exceeded.' or knoxssResponse.Error == 'service unavailable':
+                    if knoxssResponse.Error == 'API rate limit exceeded.':
+                        knoxssResponse.Calls = tc.RED+'API rate limit exceeded!'+tc.RED
+
                     rateLimitExceeded = True
-                    # If a file was passed as input, and there is an output file, try to open the todo file which 
-                    # any remaining targets will be written to
-                    if not urlPassed and args.output != "":
+                    # If a file was passed as input, try to open the todo file which any remaining targets will be written to
+                    if not urlPassed:
                         try:
-                            todoFile = open(os.path.expanduser(args.output+'.todo'), "a")
+                            todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
+                            todoFile = open(os.path.expanduser(todoFileName), "a")
                         except:
                             pass
                         # Write the target to the todo file
@@ -384,6 +388,10 @@ def processInput():
         print(colored('Calling KNOXSS API...\n', 'cyan'))
         inputArg = args.input
         if urlPassed:
+            # Check if input has scheme. If not, then add https://
+            if '://' not in inputArg:
+                print(colored('WARNING: Input "'+inputArg+'" should include a scheme. Using https by default...', 'yellow'))
+                inputArg = 'https://'+inputArg
             processUrl(inputArg)
         else: # It's a file of URLs
             try:
@@ -437,11 +445,9 @@ def discordNotify(target,poc):
         print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
         
 def processOutput(target, method, knoxssResponse):
-    global latestApiCalls, successCount, outFile
+    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded
     try:
         if knoxssResponse.Error != 'FAIL':
-            if knoxssResponse.Calls != 'Unknown':
-                latestApiCalls =  knoxssResponse.Calls
                 
             if knoxssResponse.Error != 'none':
                 if not args.success_only:
@@ -450,14 +456,21 @@ def processOutput(target, method, knoxssResponse):
                     if knoxssResponse.Code == "403":
                        knoxssResponseError = '403 Forbidden - Check http://knoxss.me manually and if you are blocked, contact Twitter/X @KN0X55 or brutelogic@null.net'
                     # See if rate limit error given
-                    if knoxssResponseError == "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))":
-                        knoxssResponseError = 'Rate limit reached. Temporarily blocked'
+                    #if knoxssResponseError == "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))":
+                    #    knoxssResponseError = 'Rate limit reached. Temporarily blocked'
                     # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
                     if 'InvalidChunkLength' in knoxssResponseError:
                         knoxssResponseError = 'The API Timed Out'
                     # If there is "Read timed out" in the error returned, it means the target website itself timed out
                     if 'Read timed out' in knoxssResponseError:
-                        knoxssResponseError = 'The target website timed out'      
+                        knoxssResponseError = 'The target website timed out'  
+                    # If the error has "can\'t test it (forbidden)" it means the target is blocking KNOXSS IP address
+                    if 'can\'t test it (forbidden)' in knoxssResponseError:
+                        knoxssResponseError = 'Target is blocking KNOXSS IP'
+                    if knoxssResponseError == 'service unavailable':
+                        rateLimitExceeded = True
+                        print(colored('The KNOXSS service is currently unavailable.', 'red'))
+                        return
                     
                     # If method is POST, remove the query string from the target and show the post data in [ ] 
                     if method == 'POST':
@@ -502,6 +515,19 @@ def processOutput(target, method, knoxssResponse):
                             print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
                             outFile.write(xssText + '\n')
+                
+                # Determine whether to wait for a minute
+                try:
+                    currentMinute=str(datetime.now().hour)+':'+str(datetime.now().minute)
+                    if currentMinute in currentCount.keys():
+                        currentCount[currentMinute] += 1
+                    else:
+                        currentCount = {currentMinute : 1}
+                    # If the current count is > 3 then wait a minute
+                    if currentCount[currentMinute] > args.processes:
+                        time.sleep(60)
+                except Exception as e:
+                    print(colored('ERROR showOutput 2:  ' + str(e), 'red'))    
                     
     except Exception as e:
         print(colored('ERROR showOutput 1: ' + str(e), 'red'))
@@ -513,6 +539,11 @@ def processUrl(target):
     try:
         if not stopProgram and not rateLimitExceeded:
             target = target.strip()
+            # Check if target has scheme. If not, then add https://
+            if '://' not in target:
+                print(colored('WARNING: Input "'+target+'" should include a scheme. Using https by default...', 'yellow'))
+                target = 'https://'+target
+                
             headers = args.headers.strip()
             knoxssResponse=knoxss()        
 
@@ -527,7 +558,7 @@ def processUrl(target):
                 processOutput(target, method, knoxssResponse)
         else:
             # If processing a target from a file, write the target to a todo file
-            if not urlPassed and args.output != "":
+            if not urlPassed:
                 todoFile.write(target.strip()+'\n')
             else:
                 os.kill(os.getpid(),SIGINT)
@@ -686,8 +717,8 @@ def main():
         
         # If a file was passed, the API limit was reached, and the output file was specified
         # let the user know about the todo file
-        if rateLimitExceeded and not urlPassed and args.output != "":
-            print(colored('The unchecked URLs have been written to','cyan'),colored(args.output+'.todo\n', 'white'))
+        if rateLimitExceeded and not urlPassed:
+            print(colored('The unchecked URLs have been written to','cyan'),colored(todoFile.name+'\n', 'white'))
             
         # Report if any successful XSS was found this time
         # If the console can't display 🤘 then an error will be raised to try without
@@ -711,7 +742,7 @@ def main():
         
         # If the rate limit was exceeded, a file was passed, and an output file was specified,
         # close the todo file
-        if rateLimitExceeded and not urlPassed and args.output != "":
+        if rateLimitExceeded and not urlPassed:
             try:
                 todoFile.close()
             except:
