@@ -260,8 +260,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     url=API_URL,
                     headers=apiHeaders,
                     data=data,
-                    timeout=args.timeout,
-                    retries=3
+                    timeout=args.timeout
                 )
                 fullResponse = resp.text.strip()
             except Exception as e:
