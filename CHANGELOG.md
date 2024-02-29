@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.11
+
+  - New
+
+    - When making a request to the KNOXSS API, set `retries=3` just in case there is a problem.
+
 - v2.10
 
   - New
