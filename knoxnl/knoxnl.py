@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 from . import __version__
 from datetime import datetime
+import time
 
 # Global variables
 stopProgram = False
@@ -253,8 +254,11 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
             encHeaders = encHeaders.replace('|','%0D%0A')
             data = data + '&auth=' + encHeaders
 
-        # Make a request to the KNOXSS API
-        try:
+        # Retry logic
+        max_retries = 3
+        retry_delay = 5  # seconds
+
+        for retry in range(max_retries):
             try:
                 resp = requests.post(
                     url=API_URL,
@@ -263,71 +267,77 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     timeout=args.timeout
                 )
                 fullResponse = resp.text.strip()
-            except Exception as e:
-                knoxssResponse.Error = str(e)
-                fullResponse = 'AN ERROR OCCURRED CALLING KNOXSS API'
-                return
-            
-            if resp.text.find('Hosting Server Read Timeout') > 0:
-                knoxssResponse.Error = 'Hosting Server Read Timeout'
-                fullResponse = 'Hosting Server Read Timeout'
-            
-            # Display the data sent to API and the response
-            if verbose():
-                print('KNOXSS API request:')
-                print('     Data: ' + data)
-                print('KNOXSS API response:')
-                print(fullResponse)
                 
-            knoxssResponse.Code = str(resp.status_code)
-            
-            # Try to get the JSON response
-            try:
-                jsonResponse = json.loads(fullResponse)
-                knoxssResponse.XSS = str(jsonResponse['XSS'])
-                knoxssResponse.PoC = str(jsonResponse['PoC'])
-                knoxssResponse.Calls = str(jsonResponse['API Call'])
-                if knoxssResponse.Calls == '0':
-                    knoxssResponse.Calls = 'Unknown'
-                knoxssResponse.Error = str(jsonResponse['Error'])
-                if knoxssResponse.Error == 'API rate limit exceeded.' or knoxssResponse.Error == 'service unavailable':
-                    if knoxssResponse.Error == 'API rate limit exceeded.':
-                        knoxssResponse.Calls = tc.RED+'API rate limit exceeded!'+tc.RED
+                if resp.text.find('Hosting Server Read Timeout') > 0:
+                    knoxssResponse.Error = 'Hosting Server Read Timeout'
+                    fullResponse = 'Hosting Server Read Timeout'
+                
+                # Display the data sent to API and the response
+                if verbose():
+                    print('KNOXSS API request:')
+                    print('     Data: ' + data)
+                    print('KNOXSS API response:')
+                    print(fullResponse)
+                    
+                knoxssResponse.Code = str(resp.status_code)
+                
+                # Try to get the JSON response
+                try:
+                    jsonResponse = json.loads(fullResponse)
+                    knoxssResponse.XSS = str(jsonResponse['XSS'])
+                    knoxssResponse.PoC = str(jsonResponse['PoC'])
+                    knoxssResponse.Calls = str(jsonResponse['API Call'])
+                    if knoxssResponse.Calls == '0':
+                        knoxssResponse.Calls = 'Unknown'
+                    knoxssResponse.Error = str(jsonResponse['Error'])
+                    if knoxssResponse.Error == 'API rate limit exceeded.' or knoxssResponse.Error == 'service unavailable':
+                        if knoxssResponse.Error == 'API rate limit exceeded.':
+                            knoxssResponse.Calls = tc.RED+'API rate limit exceeded!'+tc.RED
 
-                    rateLimitExceeded = True
-                    # If a file was passed as input, try to open the todo file which any remaining targets will be written to
-                    if not urlPassed:
-                        try:
-                            todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
-                            todoFile = open(os.path.expanduser(todoFileName), "a")
-                        except:
-                            pass
-                        # Write the target to the todo file
-                        todoFile.write(targetUrl.strip()+'\n')
-                knoxssResponse.POSTData = str(jsonResponse['POST Data'])
-                
-            except Exception as e:
-                # The response probably wasn't JSON, so check the response message
-                if fullResponse == 'Incorrect API key.':
-                    print(colored('The provided API Key is invalid!', 'red'))
-                    rateLimitExceeded = True
-                    knoxssResponse.Calls = tc.RED+'Incorrect API key: '+tc.NORMAL+API_KEY
-                elif fullResponse.find('type of target page can\'t lead to XSS') >= 0: 
-                    if verbose():
-                        print(colored('XSS is not possible with the requested URL.', 'red'))
-                else:
-                    if knoxssResponse.Error:
-                        print(colored('Something went wrong: ' + fullResponse,'red'))
+                        rateLimitExceeded = True
+                        # If a file was passed as input, try to open the todo file which any remaining targets will be written to
+                        if not urlPassed:
+                            try:
+                                todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
+                                todoFile = open(os.path.expanduser(todoFileName), "a")
+                            except:
+                                pass
+                            # Write the target to the todo file
+                            todoFile.write(targetUrl.strip()+'\n')
+                    knoxssResponse.POSTData = str(jsonResponse['POST Data'])
+                    
+                except Exception as e:
+                    # The response probably wasn't JSON, so check the response message
+                    if fullResponse == 'Incorrect API key.':
+                        print(colored('The provided API Key is invalid!', 'red'))
+                        rateLimitExceeded = True
+                        knoxssResponse.Calls = tc.RED+'Incorrect API key: '+tc.NORMAL+API_KEY
+                    elif fullResponse.find('type of target page can\'t lead to XSS') >= 0: 
+                        if verbose():
+                            print(colored('XSS is not possible with the requested URL.', 'red'))
                     else:
-                        print(colored('Something went wrong.','red'))
-                        
-            if knoxssResponse.Calls != 'Unknown':
-                latestApiCalls = knoxssResponse.Calls
-                 
-        except Exception as e:
-            knoxssResponse.Error = 'FAIL'
-            print(colored(':( There was a problem calling KNOXSS API: ' + str(e), 'red'))
-            
+                        if knoxssResponse.Error:
+                            print(colored('Something went wrong: ' + fullResponse,'red'))
+                        else:
+                            print(colored('Something went wrong.','red'))
+                            
+                if knoxssResponse.Calls != 'Unknown':
+                    latestApiCalls = knoxssResponse.Calls
+                     
+                # If the request was successful, break out of the loop
+                resp.raise_for_status()
+                break
+
+            except requests.exceptions.RequestException as e:
+                print(f"Request failed. Retrying... ({retry+1}/{max_retries})")
+                if retry < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    print("Max retries exceeded. Exiting.")
+                    knoxssResponse.Error = str(e)
+                    fullResponse = 'AN ERROR OCCURRED CALLING KNOXSS API'
+                    return
+
     except Exception as e:
         print(colored('ERROR knoxss 1:  ' + str(e), 'red'))
 
