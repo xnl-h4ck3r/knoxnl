@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v2.10
+## About - v3.0
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.me/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.me and subscribe!
@@ -159,6 +159,13 @@ With **Piper** you can also send the **knoxnl** request to a queue by selecting 
 ## Issues
 
 If you come across any problems at all, or have ideas for improvements, please feel free to raise an issue on Github. If there is a problem, it will be useful if you can provide the exact command you ran and a detailed description of the problem. If possible, run with `-v` to reproduce the problem and let me know about any error messages that are given, and the KNOXSS API request/response.
+
+## TODO
+
+- Allow input to be piped into `knoxnl`.
+- Allow a large file to be passed, and if the API limit is reached, wait until the API limit is refreshed and continue.
+- Deal with downgrading HTTPS to HTTP if required.
+- If a target is blocking KNOXSS, then try a few times, and if no success then skip all links for that domain, and write to a `.blocked` file.
 
 ## Example output
 

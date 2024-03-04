@@ -1,5 +1,25 @@
 ## Changelog
 
+- v3.0
+
+  - New
+
+    - The `.todo` file will also be written if `Ctrl-C` is used to exit.
+    - Show the current version of the tool in the banner, and whether it is the latest, or outdated.
+    - Check for `urllib3` error mentioning `Temporary failure in name resolution`. This implies the users internet connection has been lost so we will stop processing.
+    - Check for `urllib3` error mentioning `Failed to establish a new connection`. This implies the machine is running low on memory.
+    - Add `Config file path` to data shown when `-v` is passed.
+    - Sometimes when you call KNOXSS API, you will get the error `Expiration time reset, please try again.`. f this happens, the same request will be made again one more time.
+    - Add a HTTPAdapter to retry if the request to the API returns status code 429, 500, 502, 503 or 504
+    - Add `TOOO` section to README.md
+    - If a file is passed as input, show how many targets knoxnl is running for.
+    - If a message from the KNOXSS API indicated that the target is blocking KNOXSS, then a list of domains that are blocking will be displayed at the end.
+
+  - Changed
+
+    - If the `API_KEY` value is blank in `config.yml`, make sure the error is displayed correctly. Also add the following message to the error message displayed: `Don't forget to generate and SAVE your API key before using it here!`
+    - Check for `Invalid or expired API key.` as-well as `Incorrect API key.` and add the following text to the error message displayed: `Check if your subscription is still active, or if you forgot to save your current API key.`
+
 - v2.10
 
   - New

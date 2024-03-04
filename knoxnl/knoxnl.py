@@ -17,19 +17,29 @@ import json
 import os
 import sys
 from pathlib import Path
-from . import __version__
+try:
+    from . import __version__
+except:
+    pass
 from datetime import datetime
+from requests.adapters import HTTPAdapter, Retry
 
 # Global variables
 stopProgram = False
 latestApiCalls = "Unknown"
 urlPassed = True
 rateLimitExceeded = False
+needToStop = False
+dontDisplay = False
 successCount = 0
 outFile = None
 fileIsOpen = False
-todoFile = None
+todoFileName = ''
 currentCount = {}
+configPath = ''
+inputValues = set()
+blockedDomains = set()
+HTTP_ADAPTER = None
 
 DEFAULT_API_URL = 'https://api.knoxss.pro'
 
@@ -49,6 +59,19 @@ class knoxss:
     Calls = ''
     Error = ''
     POSTData = ''
+
+def showVersion():
+    try:
+        try:
+            resp = requests.get('https://raw.githubusercontent.com/xnl-h4ck3r/knoxnl/main/knoxnl/__init__.py',timeout=3)
+        except:
+            print('Current knxonl version '+__version__+' (unable to check if latest)')
+        if __version__ == resp.text.split('=')[1].replace('"',''):
+            print('Current knxonl version '+__version__+' ('+colored('latest','green')+')\n')
+        else:
+            print('Current knxonl version '+__version__+' ('+colored('outdated','red')+')\n')
+    except:
+        pass
     
 def showBanner():
     print()
@@ -59,36 +82,64 @@ def showBanner():
     print(r"|_|\_\_| |_|\___"+colored("/_/  ","red")+colored(r"\_\ "[:-1],"yellow")+colored("_| |_|","green")+colored("_| ","cyan"))
     print(colored("                 by @Xnl-h4ck3r ","magenta"))
     print()
+    showVersion()
 
 # Functions used when printing messages dependant on verbose options
 def verbose():
     return args.verbose
 
+def showBlocked():
+    global blockedDomains
+    try:
+        # If there were any domains that might be blocking KNOXSS, let the user know
+        if len(blockedDomains) > 0:
+            print(colored('The following domains seem to be blocking KNOXSS and might be worth excluding for now:','yellow'),colored(', '.join(blockedDomains),'white'))
+    except:
+        pass
+    
 # Handle the user pressing Ctrl-C and programatic interupts
 def handler(signal_received, frame):
     """
     This function is called if Ctrl-C is called by the user
     An attempt will be made to try and clean up properly
     """
-    global stopProgram, rateLimitExceeded
+    global stopProgram, needToStop, inputValues, blockedDomains
     stopProgram = True
-    if not rateLimitExceeded:
-        print(colored('>>> "Oh my God, they killed Kenny... and knoXnl!" - Kyle','red'))
-        # Try to close the file before ending
+    if not needToStop:
+        print(colored('\n>>> "Oh my God, they killed Kenny... and knoXnl!" - Kyle','red'))
+        # If there are any input values not checked, write them to a .todo file
+        try:
+            if len(inputValues) > 0:
+                try:
+                    print(colored('\n>>> Just trying to save outstanding input to .todo file before ending...','yellow'))
+                    with open(todoFileName, 'w') as file:
+                        for inp in inputValues:
+                            file.write(inp+'\n')
+                    print(colored('All unchecked URLs have been written to','cyan'),colored(todoFileName+'\n', 'white'))
+                except Exception as e:
+                    print(colored('Error saving file ','cyan'),colored(todoFileName+'\n', 'white'),colored(':'+str(e),'red'))
+        except:
+            pass
+        
+        # If there were any domains that might be blocking KNOXSS, let the user know
+        showBlocked()
+        
+        # Try to close the output file before ending
         try:
             outFile.close()
         except:
             pass
         quit()
-
+            
 # Show the chosen options and config settings
 def showOptions():
 
-    global urlPassed, fileIsOpen
+    global urlPassed, fileIsOpen, API_URL
             
     try:
         print(colored('Selected config and settings:', 'cyan'))
         
+        print(colored('Config file path:', 'magenta'), configPath)
         print(colored('KNOXSS API Url:', 'magenta'), API_URL)
         print(colored('KNOXSS API Key:', 'magenta'), API_KEY)    
         print(colored('Discord Webhook:', 'magenta'), DISCORD_WEBHOOK)   
@@ -138,13 +189,13 @@ def showOptions():
 def needApiKey():
     # If the console can't display 🤘 then an error will be raised to try without
     try:
-        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe? 🤘\n', 'green')) 
+        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe?\nDon\'t forget to generate and SAVE your API key before using it here! 🤘\n', 'green')) 
     except:
-        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe?\n', 'green')) 
+        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe?\nDon\'t forget to generate and SAVE your API key before using it here!\n', 'green')) 
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
-    global API_URL, API_KEY, DISCORD_WEBHOOK
+    global API_URL, API_KEY, DISCORD_WEBHOOK, configPath, HTTP_ADAPTER, todoFileName
     try:
         
         # Put config in global location based on the OS.
@@ -154,7 +205,23 @@ def getConfig():
             else Path(os.path.join(os.path.expanduser("~"), "Library", "Application Support", "knoxnl")) if os.name == 'darwin'
             else None
         )
-            
+        
+        # Set up an HTTPAdaptor for retry strategy when making requests
+        try:
+            retry= Retry(
+                total=2,
+                backoff_factor=0.1,
+                status_forcelist=[429, 500, 502, 503, 504],
+                raise_on_status=False,
+                respect_retry_after_header=False
+            )
+            HTTP_ADAPTER = HTTPAdapter(max_retries=retry)
+        except Exception as e:
+            print(colored('ERROR getConfig 2: ' + str(e), 'red'))
+        
+        # Set .todo file name in case we need later
+        todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
+        
         configPath.absolute
         if configPath == '':
             configPath = 'config.yml'
@@ -172,7 +239,7 @@ def getConfig():
                 API_KEY = args.api_key
                 print(colored('NOTE: Overriding "API_KEY" from config.yml with passed API Key', 'cyan'), API_KEY + '\n')
             else:
-                if API_KEY == 'YOUR_API_KEY':
+                if API_KEY is None or API_KEY == 'YOUR_API_KEY':
                     print(colored('ERROR: You need to add your "API_KEY" to config.yml or pass it with the -A option.', 'red'))
                     needApiKey()
                     quit()
@@ -202,11 +269,11 @@ def getConfig():
                 print(colored('Unable to read config.yml; using default API URL and passed API Key', 'cyan'))
             DISCORD_WEBHOOK = args.discord_webhook    
         except Exception as e:
-            print(colored('ERROR getConfig: ' + str(e), 'red'))
+            print(colored('ERROR getConfig 1: ' + str(e), 'red'))
             
 # Call the KNOXSS API
 def knoxssApi(targetUrl, headers, method, knoxssResponse):
-    global latestApiCalls, rateLimitExceeded, stopProgram, todoFile
+    global latestApiCalls, rateLimitExceeded, needToStop, dontDisplay, HTTP_ADAPTER, inputValues
     try:
         apiHeaders = {'X-API-KEY' : API_KEY, 
                      'Content-Type' : 'application/x-www-form-urlencoded',
@@ -233,13 +300,10 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     postData = targetData.split('?')[1]
                     targetData = targetData.split('?')[0]
     
-        # Then fully URL encode the whole URL
-        #targetData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in targetData)
         data = 'target=' + targetData
         
         # Add the post data if necessary
         if method == 'POST':
-            #postData = "".join("%{0:0>2}".format(format(ord(char), "x")) for char in postData)
             data = data + '&post=' + postData
 
         # Add the Advanced Filter Bypass option if required
@@ -255,75 +319,105 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
 
         # Make a request to the KNOXSS API
         try:
-            try:
-                resp = requests.post(
-                    url=API_URL,
-                    headers=apiHeaders,
-                    data=data,
-                    timeout=args.timeout
-                )
-                fullResponse = resp.text.strip()
-            except Exception as e:
-                knoxssResponse.Error = str(e)
-                fullResponse = 'AN ERROR OCCURRED CALLING KNOXSS API'
-                return
-            
-            if resp.text.find('Hosting Server Read Timeout') > 0:
-                knoxssResponse.Error = 'Hosting Server Read Timeout'
-                fullResponse = 'Hosting Server Read Timeout'
-            
-            # Display the data sent to API and the response
-            if verbose():
-                print('KNOXSS API request:')
-                print('     Data: ' + data)
-                print('KNOXSS API response:')
-                print(fullResponse)
-                
-            knoxssResponse.Code = str(resp.status_code)
-            
-            # Try to get the JSON response
-            try:
-                jsonResponse = json.loads(fullResponse)
-                knoxssResponse.XSS = str(jsonResponse['XSS'])
-                knoxssResponse.PoC = str(jsonResponse['PoC'])
-                knoxssResponse.Calls = str(jsonResponse['API Call'])
-                if knoxssResponse.Calls == '0':
-                    knoxssResponse.Calls = 'Unknown'
-                knoxssResponse.Error = str(jsonResponse['Error'])
-                if knoxssResponse.Error == 'API rate limit exceeded.' or knoxssResponse.Error == 'service unavailable':
-                    if knoxssResponse.Error == 'API rate limit exceeded.':
-                        knoxssResponse.Calls = tc.RED+'API rate limit exceeded!'+tc.RED
-
-                    rateLimitExceeded = True
-                    # If a file was passed as input, try to open the todo file which any remaining targets will be written to
-                    if not urlPassed:
-                        try:
-                            todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
-                            todoFile = open(os.path.expanduser(todoFileName), "a")
-                        except:
-                            pass
-                        # Write the target to the todo file
-                        todoFile.write(targetUrl.strip()+'\n')
-                knoxssResponse.POSTData = str(jsonResponse['POST Data'])
-                
-            except Exception as e:
-                # The response probably wasn't JSON, so check the response message
-                if fullResponse == 'Incorrect API key.':
-                    print(colored('The provided API Key is invalid!', 'red'))
-                    rateLimitExceeded = True
-                    knoxssResponse.Calls = tc.RED+'Incorrect API key: '+tc.NORMAL+API_KEY
-                elif fullResponse.find('type of target page can\'t lead to XSS') >= 0: 
-                    if verbose():
-                        print(colored('XSS is not possible with the requested URL.', 'red'))
-                else:
-                    if knoxssResponse.Error:
-                        print(colored('Something went wrong: ' + fullResponse,'red'))
+            tryAgain = True
+            while tryAgain:
+                tryAgain = False
+                try:
+                    session = requests.Session()
+                    session.mount('https://', HTTP_ADAPTER)
+                    resp = session.post(
+                        url=API_URL,
+                        headers=apiHeaders,
+                        data=data,
+                        timeout=args.timeout
+                    )
+                    fullResponse = resp.text.strip()
+                except Exception as e:
+                    if 'failure in name resolution' in str(e).lower():
+                        needToStop = True
+                        knoxssResponse.Error = 'It appears the internet connection was lost. Please try again later.'
+                    elif 'failed to establish a new connection' in str(e).lower():
+                        needToStop = True
+                        knoxssResponse.Error = 'Failing to establish a new connection to KNOXSS. This can happen if your machine is running low on memory.'
+                    elif 'remote end closed connection' in str(e).lower() or 'connection aborted' in str(e).lower():
+                        knoxssResponse.Error = 'The target dropped the connection.'
+                        return
                     else:
-                        print(colored('Something went wrong.','red'))
+                        knoxssResponse.Error = str(e)
+                        return
+                
+                if not needToStop:
+                    
+                    # Display the data sent to API and the response
+                    if verbose():
+                        print('KNOXSS API request:')
+                        print('     Data: ' + data)
+                        print('KNOXSS API response:')
+                        print(fullResponse)
                         
-            if knoxssResponse.Calls != 'Unknown':
-                latestApiCalls = knoxssResponse.Calls
-                 
+                    knoxssResponse.Code = str(resp.status_code)
+                    
+                    # Try to get the JSON response
+                    try:
+                        jsonResponse = json.loads(fullResponse)
+                        if jsonResponse == '':
+                            knoxssResponse.Error = fullResponse
+                            
+                        # If the error has "try again", and we haven't already tried before, set to True to try one more time
+                        if 'expiration time reset' in fullResponse.lower():
+                            if tryAgain:
+                                tryAgain = False
+                            else:
+                                tryAgain = True
+                        else:        
+                            knoxssResponse.XSS = str(jsonResponse['XSS'])
+                            knoxssResponse.PoC = str(jsonResponse['PoC'])
+                            knoxssResponse.Calls = str(jsonResponse['API Call'])
+                            if knoxssResponse.Calls == '0':
+                                knoxssResponse.Calls = 'Unknown'
+                            knoxssResponse.Error = str(jsonResponse['Error'])
+                            
+                            # If service unavailable flag to stop
+                            if knoxssResponse.Error == 'service unavailable':
+                                needToStop = True
+                            # If the API rate limit is exceeded, flag to stop
+                            elif knoxssResponse.Error == 'API rate limit exceeded.':
+                                rateLimitExceeded = True
+                                needToStop = True
+                                knoxssResponse.Calls = 'API rate limit exceeded!'
+                            else: # remove the URL from the int input set
+                                inputValues.discard(targetUrl)
+                                
+                            knoxssResponse.POSTData = str(jsonResponse['POST Data'])
+                        
+                    except Exception as e:
+                        knoxssResponse.Calls = 'Unknown'
+                        if fullResponse is None:
+                            fullResponse = ''
+
+                        # The response probably wasn't JSON, so check the response message
+                        if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
+                            print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key.', 'red'))
+                            needToStop = True
+                            dontDisplay = True
+                            
+                        elif fullResponse.lower() == 'no api key provided.':
+                            print(colored('No API Key was provided! Check config.yml', 'red'))
+                            needToStop = True
+                            dontDisplay = True
+
+                        elif 'hosting server read timeout' in fullResponse.lower():
+                            knoxssResponse.Error = 'Hosting Server Read Timeout'
+                        
+                        elif 'type of target page can\'t lead to xss' in fullResponse.lower(): 
+                            knoxssResponse.Error = 'XSS is not possible with the requested URL'
+                            inputValues.discard(targetUrl)
+                        else:
+                            print(colored('Something went wrong: '+str(e),'red'))
+                                
+                    if knoxssResponse.Calls != 'Unknown':
+                        latestApiCalls = knoxssResponse.Calls
+                        
         except Exception as e:
             knoxssResponse.Error = 'FAIL'
             print(colored(':( There was a problem calling KNOXSS API: ' + str(e), 'red'))
@@ -332,7 +426,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
         print(colored('ERROR knoxss 1:  ' + str(e), 'red'))
 
 def processInput():
-    global urlPassed, latestApiCalls, stopProgram, rateLimitExceeded
+    global urlPassed, latestApiCalls, stopProgram, inputValues
     try:
         latestApiCalls = 'Unknown'
 
@@ -385,9 +479,9 @@ def processInput():
         if verbose():
             showOptions()
         
-        print(colored('Calling KNOXSS API...\n', 'cyan'))
         inputArg = args.input
         if urlPassed:
+            print(colored('Calling KNOXSS API...\n', 'cyan'))
             # Check if input has scheme. If not, then add https://
             if '://' not in inputArg:
                 print(colored('WARNING: Input "'+inputArg+'" should include a scheme. Using https by default...', 'yellow'))
@@ -395,24 +489,19 @@ def processInput():
             processUrl(inputArg)
         else: # It's a file of URLs
             try:
-                inputFile = open(inputArg, 'r')
-                #urlsToProcess = []
-                with inputFile as f:
-                    #urlsToProcess = f.readlines();
-                    if not stopProgram:
-                        p = mp.Pool(args.processes)
-                        p.map(processUrl, f)
-                        p.close()
-                        p.join()
-                # while urlsToProcess:
-                #     batch_size = min(args.processes, len(urlsToProcess))
-                #     if batch_size > 0:
-                #         batch = urlsToProcess[:batch_size]
-                #         process_batch(batch)
-                #         urlsToProcess = urlsToProcess[batch_size:]
-                #         if len(urlsToProcess) > 0:
-                #             time.sleep(60)  # Sleep for 1 minute before starting the next batch
-                inputFile.close()
+                # Open file and put all values in input set
+                with open(inputArg, 'r') as inputFile:
+                    lines = inputFile.readlines()          
+                for line in lines:
+                    inputValues.add(line.strip())
+
+                print(colored('Calling KNOXSS API for '+str(len(inputValues))+' targets...\n', 'cyan'))
+                if not stopProgram:
+                    p = mp.Pool(args.processes)
+                    p.map(processUrl, inputValues)
+                    p.close()
+                    p.join()
+
             except Exception as e:
                 print(colored('ERROR processInput 3: ' + str(e), 'red'))
                 
@@ -445,7 +534,7 @@ def discordNotify(target,poc):
         print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
         
 def processOutput(target, method, knoxssResponse):
-    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded
+    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains
     try:
         if knoxssResponse.Error != 'FAIL':
                 
@@ -455,9 +544,6 @@ def processOutput(target, method, knoxssResponse):
                     # If there is a 403, it maybe because the users IP is blocked on the KNOXSS firewall
                     if knoxssResponse.Code == "403":
                        knoxssResponseError = '403 Forbidden - Check http://knoxss.me manually and if you are blocked, contact Twitter/X @KN0X55 or brutelogic@null.net'
-                    # See if rate limit error given
-                    #if knoxssResponseError == "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))":
-                    #    knoxssResponseError = 'Rate limit reached. Temporarily blocked'
                     # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
                     if 'InvalidChunkLength' in knoxssResponseError:
                         knoxssResponseError = 'The API Timed Out'
@@ -467,9 +553,16 @@ def processOutput(target, method, knoxssResponse):
                     # If the error has "can\'t test it (forbidden)" it means the target is blocking KNOXSS IP address
                     if 'can\'t test it (forbidden)' in knoxssResponseError:
                         knoxssResponseError = 'Target is blocking KNOXSS IP'
+                        try:
+                            domain = target.split('://')[1].split('#')[0].split('?')[0].split('/')[0]
+                            blockedDomains.add(domain)
+                        except:
+                            pass
+                        
+                    # If service is unavailable then we need to stop
                     if knoxssResponseError == 'service unavailable':
-                        rateLimitExceeded = True
-                        print(colored('The KNOXSS service is currently unavailable.', 'red'))
+                        needToStop = True
+                        print(colored('The KNOXSS service is currently unavailable. Please try again later.', 'red'))
                         return
                     
                     # If method is POST, remove the query string from the target and show the post data in [ ] 
@@ -484,14 +577,15 @@ def processOutput(target, method, knoxssResponse):
                         else:
                             if querystring != '':
                                 target = target + ' [' + querystring + ']'                            
-                            
-                    xssText = '[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError
-                    if urlPassed or rateLimitExceeded:
-                        print(colored(xssText, 'red'))
-                    else:
-                        print(colored(xssText, 'red'), colored('['+latestApiCalls+']','white'))
-                    if args.output_all and fileIsOpen:
-                        outFile.write(xssText + '\n')
+                    
+                    if not dontDisplay:        
+                        xssText = '[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError
+                        if urlPassed or rateLimitExceeded:
+                            print(colored(xssText, 'red'))
+                        else:
+                            print(colored(xssText, 'red'), colored('['+latestApiCalls+']','white'))
+                        if args.output_all and fileIsOpen:
+                            outFile.print(xssText + '\n')
             else:
                 if knoxssResponse.XSS == 'true':
                     xssText = '[ XSS! ] - (' + method + ')  ' + knoxssResponse.PoC
@@ -505,7 +599,7 @@ def processOutput(target, method, knoxssResponse):
                         discordNotify(target,knoxssResponse.PoC)
                     # Write the successful XSS details to file
                     if fileIsOpen:
-                        outFile.write(xssText + '\n')
+                        outFile.print(xssText + '\n')
                 else:
                     if not args.success_only:
                         xssText = '[ SAFE ] - (' + method + ')  ' + target
@@ -514,7 +608,7 @@ def processOutput(target, method, knoxssResponse):
                         else:
                             print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
-                            outFile.write(xssText + '\n')
+                            outFile.print(xssText + '\n')
                 
                 # Determine whether to wait for a minute
                 try:
@@ -535,9 +629,9 @@ def processOutput(target, method, knoxssResponse):
 # Process one URL        
 def processUrl(target):
     
-    global stopProgram, rateLimitExceeded, latestApiCalls, urlPassed, todoFile
+    global stopProgram, latestApiCalls, urlPassed, todoFileName, needToStop
     try:
-        if not stopProgram and not rateLimitExceeded:
+        if not stopProgram and not needToStop:
             target = target.strip()
             # Check if target has scheme. If not, then add https://
             if '://' not in target:
@@ -556,12 +650,6 @@ def processUrl(target):
                 method = 'POST'
                 knoxssApi(target, headers, method, knoxssResponse)
                 processOutput(target, method, knoxssResponse)
-        else:
-            # If processing a target from a file, write the target to a todo file
-            if not urlPassed:
-                todoFile.write(target.strip()+'\n')
-            else:
-                os.kill(os.getpid(),SIGINT)
 
     except Exception as e:
         print(colored('ERROR processUrl 1: ' + str(e), 'red'))   
@@ -575,7 +663,7 @@ def processes_type(x):
                                 
 # Run knoXnl
 def main():
-    global args, latestApiCalls, rateLimitExceeded, urlPassed, successCount, todoFile, fileIsOpen, outFile
+    global args, latestApiCalls, urlPassed, successCount, fileIsOpen, outFile, needToStop, todoFileName, blockedDomains
     
     # Tell Python to run the handler() function when SIGINT is received
     signal(SIGINT, handler)
@@ -684,6 +772,12 @@ def main():
     parser.add_argument('--version', action='store_true', help="Show version number")
     args = parser.parse_args()
 
+    # If no input was given, raise an error
+    if sys.stdin.isatty():
+        if args.input is None:
+            print(colored('You need to provide an input with -i argument or through <stdin>.', 'red'))
+            sys.exit()
+            
     showBanner()
 
     # If --version was passed, display version and exit
@@ -714,11 +808,18 @@ def main():
         if latestApiCalls is None:
             latestApiCalls = 'Unknown'
         print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
+           
+        # If a file was passed, there is a reason to stop, write the .todo file and let the user know about it
+        if needToStop and not urlPassed:
+            try:
+                with open(todoFileName, 'w') as file:
+                    for inp in inputValues:
+                        file.write(inp+'\n')
+                print(colored('Had to stop due to errors. All unchecked URLs have been written to','cyan'),colored(todoFileName+'\n', 'white'))
+            except Exception as e:
+                print(colored('Was unable to write .todo file: '+str(e),'red'))
         
-        # If a file was passed, the API limit was reached, and the output file was specified
-        # let the user know about the todo file
-        if rateLimitExceeded and not urlPassed:
-            print(colored('The unchecked URLs have been written to','cyan'),colored(todoFile.name+'\n', 'white'))
+        showBlocked()
             
         # Report if any successful XSS was found this time
         # If the console can't display 🤘 then an error will be raised to try without
@@ -740,14 +841,6 @@ def main():
             except Exception as e:
                 print(colored("ERROR: Unable to close output file: " + str(e), "red"))
         
-        # If the rate limit was exceeded, a file was passed, and an output file was specified,
-        # close the todo file
-        if rateLimitExceeded and not urlPassed:
-            try:
-                todoFile.close()
-            except:
-                pass
-
     except Exception as e:
         print(colored('ERROR main 1: ' + str(e), 'red'))
         
