@@ -65,11 +65,11 @@ def showVersion():
         try:
             resp = requests.get('https://raw.githubusercontent.com/xnl-h4ck3r/knoxnl/main/knoxnl/__init__.py',timeout=3)
         except:
-            print('Current knxonl version '+__version__+' (unable to check if latest)')
+            print('Current knoxnl version '+__version__+' (unable to check if latest)')
         if __version__ == resp.text.split('=')[1].replace('"',''):
-            print('Current knxonl version '+__version__+' ('+colored('latest','green')+')\n')
+            print('Current knoxnl version '+__version__+' ('+colored('latest','green')+')\n')
         else:
-            print('Current knxonl version '+__version__+' ('+colored('outdated','red')+')\n')
+            print('Current knoxnl version '+__version__+' ('+colored('outdated','red')+')\n')
     except:
         pass
     

@@ -152,7 +152,7 @@ To call **knoxnl** for a particular request, follow these steps:
 1. Right click on a Request and select **Extensions -> Piper -> Process 1 request -> knoxnl**.
 2. A window should open with the title **Piper - knoxnl**.
 3. **IMPORTANT NOTE:** This **Piper** window stays blank until the command is complete (which could be up to 180 seconds - the default value of `-t`/`--timeout`).
-4. When complete, it should show the **knxonl** output in the same way as on the command line version. Just close the window when you have finished.
+4. When complete, it should show the **knoxnl** output in the same way as on the command line version. Just close the window when you have finished.
 
 With **Piper** you can also send the **knoxnl** request to a queue by selecting **Extensions -> Piper -> Add to queue**. You can then go to the **Queue** sub tab under **Piper** and see the request. Right click the request to send to **knoxnl**.
 
