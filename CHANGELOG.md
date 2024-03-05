@@ -1,5 +1,11 @@
 ## Changelog
 
+- v3.1
+
+  - New
+
+    - When installing knoxnl, if the config.yml already exists then it will keep that one and create `config.yml.NEW` in case you need to replace the old config.
+
 - v3.0
 
   - New
