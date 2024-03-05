@@ -62,6 +62,7 @@ class knoxss:
 
 def showVersion():
     try:
+        
         try:
             resp = requests.get('https://raw.githubusercontent.com/xnl-h4ck3r/knoxnl/main/knoxnl/__init__.py',timeout=3)
         except:
@@ -772,6 +773,11 @@ def main():
     parser.add_argument('--version', action='store_true', help="Show version number")
     args = parser.parse_args()
 
+    # If --version was passed, display version and exit
+    if args.version:
+        print(colored('knoxnl - v' + __version__,'cyan'))
+        sys.exit()
+        
     # If no input was given, raise an error
     if sys.stdin.isatty():
         if args.input is None:
@@ -780,11 +786,6 @@ def main():
             
     showBanner()
 
-    # If --version was passed, display version and exit
-    if args.version:
-        print(colored('knoxnl - v' + __version__,'cyan'))
-        sys.exit()
-        
     # Get the config settings from the config.yml file
     getConfig()
 

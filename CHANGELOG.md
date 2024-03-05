@@ -1,5 +1,9 @@
 ## Changelog
 
+- v3.2
+
+  - Fix bug that was stopping `--version` argument working
+
 - v3.1
 
   - New
