@@ -15,7 +15,7 @@ This was inspired by the ["knoxssme" tool](https://github.com/edoardottt/lit-bb-
 Install `knoxnl` in default(global) python environment.
 
 ```bash
-pip install git+https://github.com/xnl-h4ck3r/knoxnl.git
+pip install git+https://github.com/xnl-h4ck3r/knoxnl.git -v
 ```
 
 ### pipx
