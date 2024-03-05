@@ -8,12 +8,14 @@ This was inspired by the ["knoxssme" tool](https://github.com/edoardottt/lit-bb-
 
 ## Installation
 
+**NOTE: If you already have a `config.yml` file, it will not be overwritten. The file `config.yml.NEW` will be created in the same directory. If you need the new config, remove `config.yml` and rename `config.yml.NEW` back to `config.yml`.**
+
 `knoxnl` supports **Python 3**.
 
 Install `knoxnl` in default(global) python environment.
 
 ```bash
-$ pip install git+https://github.com/xnl-h4ck3r/knoxnl.git
+pip install git+https://github.com/xnl-h4ck3r/knoxnl.git
 ```
 
 ### pipx
@@ -21,7 +23,7 @@ $ pip install git+https://github.com/xnl-h4ck3r/knoxnl.git
 Quick setup in isolated python environment using [pipx](https://pypa.github.io/pipx/)
 
 ```bash
-$ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
+pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 ```
 
 ## Usage
