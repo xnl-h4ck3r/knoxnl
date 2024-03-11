@@ -1,5 +1,12 @@
 ## Changelog
 
+- v3.3
+
+  - Changed
+
+    - If input from a file is a blank line, just ignore instead of raising an error.
+    - Fix a bug when using `knoxnl` from Burps Piper. Only try writing the `.todo` file if a file was passed.
+
 - v3.2
 
   - Fix bug that was stopping `--version` argument working

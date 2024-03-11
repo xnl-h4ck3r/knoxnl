@@ -104,7 +104,7 @@ def handler(signal_received, frame):
     This function is called if Ctrl-C is called by the user
     An attempt will be made to try and clean up properly
     """
-    global stopProgram, needToStop, inputValues, blockedDomains
+    global stopProgram, needToStop, inputValues, blockedDomains, todoFileName
     stopProgram = True
     if not needToStop:
         print(colored('\n>>> "Oh my God, they killed Kenny... and knoXnl!" - Kyle','red'))
@@ -196,7 +196,7 @@ def needApiKey():
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
-    global API_URL, API_KEY, DISCORD_WEBHOOK, configPath, HTTP_ADAPTER, todoFileName
+    global API_URL, API_KEY, DISCORD_WEBHOOK, configPath, HTTP_ADAPTER
     try:
         
         # Put config in global location based on the OS.
@@ -206,7 +206,7 @@ def getConfig():
             else Path(os.path.join(os.path.expanduser("~"), "Library", "Application Support", "knoxnl")) if os.name == 'darwin'
             else None
         )
-        
+
         # Set up an HTTPAdaptor for retry strategy when making requests
         try:
             retry= Retry(
@@ -219,9 +219,6 @@ def getConfig():
             HTTP_ADAPTER = HTTPAdapter(max_retries=retry)
         except Exception as e:
             print(colored('ERROR getConfig 2: ' + str(e), 'red'))
-        
-        # Set .todo file name in case we need later
-        todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
         
         configPath.absolute
         if configPath == '':
@@ -427,7 +424,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
         print(colored('ERROR knoxss 1:  ' + str(e), 'red'))
 
 def processInput():
-    global urlPassed, latestApiCalls, stopProgram, inputValues
+    global urlPassed, latestApiCalls, stopProgram, inputValues, todoFileName
     try:
         latestApiCalls = 'Unknown'
 
@@ -465,7 +462,10 @@ def processInput():
             if not args.input:
                 print(colored('ERROR: The -i / --input argument must be passed (unless calling from Burp Piper extension with -bp / --burp-piper). The input can be a single URL or a file or URLs.', 'red'))
                 exit()
-                
+            
+            # Set .todo file name in case we need later
+            todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
+            
             # If the -i (--input) can be a standard file (text file with URLs per line),
             # if the value passed is not a valid file, then assume it is an individual URL
             urlPassed = False
@@ -494,7 +494,8 @@ def processInput():
                 with open(inputArg, 'r') as inputFile:
                     lines = inputFile.readlines()          
                 for line in lines:
-                    inputValues.add(line.strip())
+                    if line.strip() != '':
+                        inputValues.add(line.strip())
 
                 print(colored('Calling KNOXSS API for '+str(len(inputValues))+' targets...\n', 'cyan'))
                 if not stopProgram:
@@ -630,7 +631,7 @@ def processOutput(target, method, knoxssResponse):
 # Process one URL        
 def processUrl(target):
     
-    global stopProgram, latestApiCalls, urlPassed, todoFileName, needToStop
+    global stopProgram, latestApiCalls, urlPassed, needToStop
     try:
         if not stopProgram and not needToStop:
             target = target.strip()
@@ -803,7 +804,7 @@ def main():
                                 
     try:
 
-        processInput()        
+        processInput()
         
         # Show the user the latest API quota       
         if latestApiCalls is None:
@@ -811,7 +812,7 @@ def main():
         print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
            
         # If a file was passed, there is a reason to stop, write the .todo file and let the user know about it
-        if needToStop and not urlPassed:
+        if needToStop and not urlPassed and not args.burp_piper:
             try:
                 with open(todoFileName, 'w') as file:
                     for inp in inputValues:
