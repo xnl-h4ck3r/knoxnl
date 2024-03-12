@@ -336,7 +336,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         knoxssResponse.Error = 'It appears the internet connection was lost. Please try again later.'
                     elif 'failed to establish a new connection' in str(e).lower():
                         needToStop = True
-                        knoxssResponse.Error = 'Failing to establish a new connection to KNOXSS. This can happen if your machine is running low on memory.'
+                        knoxssResponse.Error = 'Failing to establish a new connection to KNOXSS. This can happen if there is an issue with the KNOXSS API or can happen if your machine is running low on memory.'
                     elif 'remote end closed connection' in str(e).lower() or 'connection aborted' in str(e).lower():
                         knoxssResponse.Error = 'The target dropped the connection.'
                         return
