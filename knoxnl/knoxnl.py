@@ -587,7 +587,7 @@ def processOutput(target, method, knoxssResponse):
                         else:
                             print(colored(xssText, 'red'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
-                            outFile.print(xssText + '\n')
+                            outFile.write(xssText + '\n')
             else:
                 if knoxssResponse.XSS == 'true':
                     xssText = '[ XSS! ] - (' + method + ')  ' + knoxssResponse.PoC
@@ -601,7 +601,7 @@ def processOutput(target, method, knoxssResponse):
                         discordNotify(target,knoxssResponse.PoC)
                     # Write the successful XSS details to file
                     if fileIsOpen:
-                        outFile.print(xssText + '\n')
+                        outFile.write(xssText + '\n')
                 else:
                     if not args.success_only:
                         xssText = '[ SAFE ] - (' + method + ')  ' + target
@@ -610,7 +610,7 @@ def processOutput(target, method, knoxssResponse):
                         else:
                             print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
-                            outFile.print(xssText + '\n')
+                            outFile.write(xssText + '\n')
                 
                 # Determine whether to wait for a minute
                 try:

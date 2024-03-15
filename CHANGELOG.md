@@ -1,5 +1,11 @@
 ## Changelog
 
+- v3.4
+
+  - Changed
+
+    - Fix a bug that causes the error `ERROR showOutput 1: '_io.TextIOWrapper' object has no attribute 'print'` when writing to the output file.
+
 - v3.3
 
   - Changed
