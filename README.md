@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v3.4
+## About - v4.0
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.me/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.me and subscribe!
@@ -12,10 +12,22 @@ This was inspired by the ["knoxssme" tool](https://github.com/edoardottt/lit-bb-
 
 `knoxnl` supports **Python 3**.
 
-Install `knoxnl` in default(global) python environment.
+Install `knoxnl` in default (global) python environment.
+
+```bash
+pip install knoxnl
+```
+
+OR
 
 ```bash
 pip install git+https://github.com/xnl-h4ck3r/knoxnl.git -v
+```
+
+You can upgrade with
+
+```bash
+pip install --upgrade knoxnl
 ```
 
 ### pipx
@@ -30,7 +42,7 @@ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 
 | Arg  | Long Arg                 | Description                                                                                                                                                                                                                                                |
 | ---- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| -i   | --input                  | Input to send to KNOXSS API: a single URL, or file of URLs.                                                                                                                                                                                                |
+| -i   | --input                  | Input to send to KNOXSS API: a single URL, or file of URLs. **NOTE: If you pass a URL, put it in quotes otherwise the shell can interpret `&` characters as instruction to run a background task.**                                                        |
 | -o   | --output                 | The file to save the successful XSS and payloads to. If the file already exist it will just be appended to unless option `-ow` is passed.                                                                                                                  |
 | -ow  | --output-overwrite       | If the output file already exists, it will be overwritten instead of being appended to.                                                                                                                                                                    |
 | -oa  | --output-all             | Write all results to the output file, not just successful one's.                                                                                                                                                                                           |
@@ -79,6 +91,8 @@ The `config.yml` file (in the global location based on the OS, e.g. `~/.config/k
 ### Basic
 
 Pass a single URL:
+
+**NOTE: If you pass a URL, put it in quotes otherwise the shell can interpret `&` characters as instruction to run a background task.**
 
 ```
 knoxnl -i "https://brutelogic.com.br/xss.php"

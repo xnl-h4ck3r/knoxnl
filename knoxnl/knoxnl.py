@@ -23,6 +23,7 @@ except:
     pass
 from datetime import datetime
 from requests.adapters import HTTPAdapter, Retry
+import re
 
 # Global variables
 stopProgram = False
@@ -326,7 +327,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     resp = session.post(
                         url=API_URL,
                         headers=apiHeaders,
-                        data=data,
+                        data=data.encode('utf-8'),
                         timeout=args.timeout
                     )
                     fullResponse = resp.text.strip()
@@ -339,9 +340,13 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         knoxssResponse.Error = 'Failing to establish a new connection to KNOXSS. This can happen if there is an issue with the KNOXSS API or can happen if your machine is running low on memory.'
                     elif 'remote end closed connection' in str(e).lower() or 'connection aborted' in str(e).lower():
                         knoxssResponse.Error = 'The target dropped the connection.'
+                        # Remove the URL from the input set
+                        inputValues.discard(targetUrl)
                         return
                     else:
                         knoxssResponse.Error = str(e)
+                        # remove the URL from the input set
+                        inputValues.discard(targetUrl)
                         return
                 
                 if not needToStop:
@@ -385,6 +390,9 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                                 knoxssResponse.Calls = 'API rate limit exceeded!'
                             else: # remove the URL from the int input set
                                 inputValues.discard(targetUrl)
+                                # If the target timed out, add it back to the end of the input values because it could be tried again
+                                if 'Read timed out' in knoxssResponse.Error: 
+                                    inputValues.add(targetUrl)
                                 
                             knoxssResponse.POSTData = str(jsonResponse['POST Data'])
                         
@@ -412,6 +420,8 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                             inputValues.discard(targetUrl)
                         else:
                             print(colored('Something went wrong: '+str(e),'red'))
+                            # remove the URL from the int input set
+                            inputValues.discard(targetUrl)
                                 
                     if knoxssResponse.Calls != 'Unknown':
                         latestApiCalls = knoxssResponse.Calls
@@ -464,8 +474,13 @@ def processInput():
                 exit()
             
             # Set .todo file name in case we need later
-            todoFileName = args.input+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
-            
+            # If the existing filename already has ".YYYYMMDD_HHMMSS.todo" at the end, then remove it before creating the new name
+            originalFileName = args.input
+            pattern = r'\.\d{8}_\d{6}\.todo$'
+            if re.search(pattern, originalFileName):
+                originalFileName = re.sub(pattern, '', originalFileName)
+            todoFileName = originalFileName+'.'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.todo'
+                     
             # If the -i (--input) can be a standard file (text file with URLs per line),
             # if the value passed is not a valid file, then assume it is an individual URL
             urlPassed = False

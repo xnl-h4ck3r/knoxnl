@@ -1,5 +1,20 @@
 ## Changelog
 
+- v4.0
+
+  - New
+
+    - Add `long_description_content_type` to `setup.py` to upload to PyPi
+    - Add `knxonl` to `PyPi` so can be installed with `pip install knoxnl`
+    - Include a NOTE in the `README` to put a URL in quotes when passing as input because the shell can interpret the `&` character as an instruction to run a background task.
+    - If a `Read timed out` error happens then the target timed out, but could work again later. The target URL will be added back to the end of the list to try again later (or be written to the `.todo` file).
+
+  - Changed
+
+    - If the input file ends with `.YYYYMMDD_HHMMSS.todo` then remove that part before adding it for the new `.todo` file.
+    - When an input URL contains unicode characters, it can cause an error from the API like `'latin-1' codec can't encode characters in position 41-41: Body ('�') is not valid Latin-1`. When posting to the API, use `data.encode('utf-8')` to send it encoded in UTF-8.
+    - Ensure that the current URL is removed from the list written to the `.todo` file if it is an error with the target.
+
 - v3.4
 
   - Changed
