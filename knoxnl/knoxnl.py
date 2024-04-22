@@ -24,6 +24,8 @@ except:
 from datetime import datetime
 from requests.adapters import HTTPAdapter, Retry
 import re
+import time
+from urllib.parse import urlparse
 
 # Global variables
 stopProgram = False
@@ -31,6 +33,7 @@ latestApiCalls = "Unknown"
 urlPassed = True
 rateLimitExceeded = False
 needToStop = False
+needToRetry = False
 dontDisplay = False
 successCount = 0
 outFile = None
@@ -41,11 +44,23 @@ configPath = ''
 inputValues = set()
 blockedDomains = set()
 HTTP_ADAPTER = None
+retryAttempt = 0
+
+pauseEvent = mp.Event()
 
 DEFAULT_API_URL = 'https://api.knoxss.pro'
 
 # The default timeout for KNOXSS API to respond in seconds
-DEFAULT_TIMEOUT = 180
+DEFAULT_TIMEOUT = 600
+
+# The default number of times to retry when having issues connecting to the KNOXSS API 
+DEFAULT_RETRIES = 3
+
+# The default number of seconds to wait when having issues connecting to the KNOXSS API before retrying
+DEFAULT_RETRY_INTERVAL = 30
+
+# The default backoff factor to use when retrying after having issues connecting to the KNOXSS API
+DEFAULT_RETRY_BACKOFF_FACTOR = 1.5
 
 # Yaml config values
 API_URL = ''
@@ -107,6 +122,7 @@ def handler(signal_received, frame):
     """
     global stopProgram, needToStop, inputValues, blockedDomains, todoFileName
     stopProgram = True
+    pauseEvent.clear()
     if not needToStop:
         print(colored('\n>>> "Oh my God, they killed Kenny... and knoXnl!" - Kyle','red'))
         # If there are any input values not checked, write them to a .todo file
@@ -182,6 +198,12 @@ def showOptions():
             
         print(colored('-afb: ' + str(args.advanced_filter_bypass), 'magenta'), 'Whether the Advanced Filter Bypass option is passed to KNOXSS API.')
         print(colored('-t: ' + str(args.timeout), 'magenta'), 'The number of seconds to wait for KNOXSS API to respond.')
+        
+        print(colored('-r: ' + str(args.retries), 'magenta'), 'The number of times to retry when having issues connecting to the KNOXSS API.')
+        if args.retries > 0:
+            print(colored('-ri: ' + str(args.retry_interval), 'magenta'), 'How many seconds to wait before retrying when having issues connecting to the KNOXSS API.')
+            print(colored('-rb: ' + str(args.retry_backoff), 'magenta'), 'The backoff factor used when retrying when having issues connecting to the KNOXSS API.')
+            
         print()
 
     except Exception as e:
@@ -272,7 +294,7 @@ def getConfig():
             
 # Call the KNOXSS API
 def knoxssApi(targetUrl, headers, method, knoxssResponse):
-    global latestApiCalls, rateLimitExceeded, needToStop, dontDisplay, HTTP_ADAPTER, inputValues
+    global latestApiCalls, rateLimitExceeded, needToStop, dontDisplay, HTTP_ADAPTER, inputValues, needToRetry
     try:
         apiHeaders = {'X-API-KEY' : API_KEY, 
                      'Content-Type' : 'application/x-www-form-urlencoded',
@@ -281,6 +303,9 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
         
         # Replace any & in the URL with encoded value so we can add other data using &
         targetData = targetUrl.replace('&', '%26')
+    
+        # Also encode + so it doesn't get converted to space
+        targetData = targetUrl.replace('+', '%2B')
     
         # If processing a POST
         if method == 'POST' and args.http_method in ('POST','BOTH'):
@@ -324,32 +349,39 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                 try:
                     session = requests.Session()
                     session.mount('https://', HTTP_ADAPTER)
-                    resp = session.post(
-                        url=API_URL,
-                        headers=apiHeaders,
-                        data=data.encode('utf-8'),
-                        timeout=args.timeout
-                    )
+                    # If a session timeout of 0 is passed, don't provide a timeout value.
+                    if args.timeout == 0:
+                        resp = session.post(
+                            url=API_URL,
+                            headers=apiHeaders,
+                            data=data.encode('utf-8')
+                        )
+                    else:
+                        resp = session.post(
+                            url=API_URL,
+                            headers=apiHeaders,
+                            data=data.encode('utf-8'),
+                            timeout=args.timeout
+                        )
                     fullResponse = resp.text.strip()
                 except Exception as e:
+                    needToRetry = True
                     if 'failure in name resolution' in str(e).lower():
-                        needToStop = True
                         knoxssResponse.Error = 'It appears the internet connection was lost. Please try again later.'
+                    elif 'response ended prematurely' in str(e).lower():
+                        knoxssResponse.Error = 'The response ended prematurely. This can sometimes happen if you use a VPN. The KNOXSS servers seem to block that.'
                     elif 'failed to establish a new connection' in str(e).lower():
-                        needToStop = True
                         knoxssResponse.Error = 'Failing to establish a new connection to KNOXSS. This can happen if there is an issue with the KNOXSS API or can happen if your machine is running low on memory.'
                     elif 'remote end closed connection' in str(e).lower() or 'connection aborted' in str(e).lower():
-                        knoxssResponse.Error = 'The target dropped the connection.'
-                        # Remove the URL from the input set
-                        inputValues.discard(targetUrl)
-                        return
+                        knoxssResponse.Error = 'The KNOXSS API dropped the connection.'
+                    elif 'read timed out' in str(e).lower():
+                        knoxssResponse.Error = 'The KNOXSS API timed out getting the response (consider changing -t value)'
+                        needToRetry = False
+                        fullResponse = ''
                     else:
-                        knoxssResponse.Error = str(e)
-                        # remove the URL from the input set
-                        inputValues.discard(targetUrl)
-                        return
+                        knoxssResponse.Error = 'Unhandled error: ' + str(e)
                 
-                if not needToStop:
+                if not needToStop and not needToRetry:
                     
                     # Display the data sent to API and the response
                     if verbose():
@@ -365,6 +397,8 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         jsonResponse = json.loads(fullResponse)
                         if jsonResponse == '':
                             knoxssResponse.Error = fullResponse
+                        else:
+                            knoxssResponse.Error = 'none'
                             
                         # If the error has "try again", and we haven't already tried before, set to True to try one more time
                         if 'expiration time reset' in fullResponse.lower():
@@ -382,7 +416,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                             
                             # If service unavailable flag to stop
                             if knoxssResponse.Error == 'service unavailable':
-                                needToStop = True
+                                needToRetry = True
                             # If the API rate limit is exceeded, flag to stop
                             elif knoxssResponse.Error == 'API rate limit exceeded.':
                                 rateLimitExceeded = True
@@ -390,9 +424,6 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                                 knoxssResponse.Calls = 'API rate limit exceeded!'
                             else: # remove the URL from the int input set
                                 inputValues.discard(targetUrl)
-                                # If the target timed out, add it back to the end of the input values because it could be tried again
-                                if 'Read timed out' in knoxssResponse.Error: 
-                                    inputValues.add(targetUrl)
                                 
                             knoxssResponse.POSTData = str(jsonResponse['POST Data'])
                         
@@ -400,10 +431,11 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         knoxssResponse.Calls = 'Unknown'
                         if fullResponse is None:
                             fullResponse = ''
+                            knoxssResponse.Error = 'Empty response from API'
 
                         # The response probably wasn't JSON, so check the response message
                         if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
-                            print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key.', 'red'))
+                            print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key. You might need to login on https://knoxss.me and go to your Profile and click "Save All Changes".', 'red'))
                             needToStop = True
                             dontDisplay = True
                             
@@ -418,12 +450,13 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         elif 'type of target page can\'t lead to xss' in fullResponse.lower(): 
                             knoxssResponse.Error = 'XSS is not possible with the requested URL'
                             inputValues.discard(targetUrl)
+                            
                         else:
                             print(colored('Something went wrong: '+str(e),'red'))
                             # remove the URL from the int input set
                             inputValues.discard(targetUrl)
                                 
-                    if knoxssResponse.Calls != 'Unknown':
+                    if knoxssResponse.Calls != 'Unknown' and knoxssResponse.Calls != '':
                         latestApiCalls = knoxssResponse.Calls
                         
         except Exception as e:
@@ -525,10 +558,6 @@ def processInput():
     except Exception as e:
         print(colored('ERROR processInput 1: ' + str(e), 'red'))
 
-def process_batch(urls):
-    with multiprocessing.Pool(processes=args.processes) as pool:
-        pool.map(processUrl, urls)
-
 def discordNotify(target,poc):
     global DISCORD_WEBHOOK
     try:
@@ -551,7 +580,7 @@ def discordNotify(target,poc):
         print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
         
 def processOutput(target, method, knoxssResponse):
-    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains
+    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry
     try:
         if knoxssResponse.Error != 'FAIL':
                 
@@ -561,26 +590,20 @@ def processOutput(target, method, knoxssResponse):
                     # If there is a 403, it maybe because the users IP is blocked on the KNOXSS firewall
                     if knoxssResponse.Code == "403":
                        knoxssResponseError = '403 Forbidden - Check http://knoxss.me manually and if you are blocked, contact Twitter/X @KN0X55 or brutelogic@null.net'
+                       needToStop = True
                     # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
                     if 'InvalidChunkLength' in knoxssResponseError:
                         knoxssResponseError = 'The API Timed Out'
-                    # If there is "Read timed out" in the error returned, it means the target website itself timed out
-                    if 'Read timed out' in knoxssResponseError:
-                        knoxssResponseError = 'The target website timed out'  
+                        needToRetry = True
                     # If the error has "can\'t test it (forbidden)" it means the target is blocking KNOXSS IP address
                     if 'can\'t test it (forbidden)' in knoxssResponseError:
                         knoxssResponseError = 'Target is blocking KNOXSS IP'
                         try:
-                            domain = target.split('://')[1].split('#')[0].split('?')[0].split('/')[0]
+                            parsedTarget = urlparse(target)
+                            domain = parsedTarget.scheme + '://' + parsedTarget.netloc
                             blockedDomains.add(domain)
                         except:
                             pass
-                        
-                    # If service is unavailable then we need to stop
-                    if knoxssResponseError == 'service unavailable':
-                        needToStop = True
-                        print(colored('The KNOXSS service is currently unavailable. Please try again later.', 'red'))
-                        return
                     
                     # If method is POST, remove the query string from the target and show the post data in [ ] 
                     if method == 'POST':
@@ -625,20 +648,7 @@ def processOutput(target, method, knoxssResponse):
                         else:
                             print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
-                            outFile.write(xssText + '\n')
-                
-                # Determine whether to wait for a minute
-                try:
-                    currentMinute=str(datetime.now().hour)+':'+str(datetime.now().minute)
-                    if currentMinute in currentCount.keys():
-                        currentCount[currentMinute] += 1
-                    else:
-                        currentCount = {currentMinute : 1}
-                    # If the current count is > 3 then wait a minute
-                    if currentCount[currentMinute] > args.processes:
-                        time.sleep(60)
-                except Exception as e:
-                    print(colored('ERROR showOutput 2:  ' + str(e), 'red'))    
+                            outFile.write(xssText + '\n') 
                     
     except Exception as e:
         print(colored('ERROR showOutput 1: ' + str(e), 'red'))
@@ -646,29 +656,63 @@ def processOutput(target, method, knoxssResponse):
 # Process one URL        
 def processUrl(target):
     
-    global stopProgram, latestApiCalls, urlPassed, needToStop
-    try:
+    global stopProgram, latestApiCalls, urlPassed, needToStop, needToRetry, retryAttempt
+    try:    
+        # If the event is set, pause for a while until its unset again
+        while pauseEvent.is_set() and not stopProgram and not needToStop:
+            time.sleep(1)
+            
         if not stopProgram and not needToStop:
+                
+            # If we need to try again because of an KNOXSS error, then delay
+            if needToRetry and args.retries > 0:
+                if retryAttempt < args.retries:
+                    # Set the event to pause all processes
+                    pauseEvent.set()
+                    needToRetry = False
+                    if retryAttempt == 0:
+                        delay = args.retry_interval
+                    else:
+                        delay = args.retry_interval * (retryAttempt * args.retry_backoff)
+                    if retryAttempt == args.retries:
+                        print(colored('WARNING: There are issues with KNOXSS API. Sleeping for ' + str(delay) + ' seconds before trying again. Last retry.', 'yellow'))
+                    else:
+                        print(colored('WARNING: There are issues with KNOXSS API. Sleeping for ' + str(delay) + ' seconds before trying again.', 'yellow'))
+                    retryAttempt += 1
+                    time.sleep(delay)
+                    # Reset the event for the next iteration
+                    pauseEvent.clear()
+                else:
+                    needToStop = True
+                   
             target = target.strip()
             # Check if target has scheme. If not, then add https://
             if '://' not in target:
                 print(colored('WARNING: Input "'+target+'" should include a scheme. Using https by default...', 'yellow'))
                 target = 'https://'+target
-                
-            headers = args.headers.strip()
-            knoxssResponse=knoxss()        
+            
+            # If the domain has already been flagged as blocked, then skip it and remove from the input values so not written to the .todo file
+            parsedTarget = urlparse(target)
+            domain = parsedTarget.scheme + '://' + parsedTarget.netloc
+            if domain in blockedDomains:
+                print(colored('[ SKIP ] - ' + domain + ' has already been flagged as blocked, so skipping ' + target, 'yellow', attrs=['dark']))
+                inputValues.discard(target)
+            else:
+                headers = args.headers.strip()
+                knoxssResponse=knoxss()        
 
-            if args.http_method in ('GET','BOTH'): 
-                method = 'GET'
-                knoxssApi(target, headers, method, knoxssResponse)
-                processOutput(target, method, knoxssResponse)
-        
-            if args.http_method in ('POST','BOTH'): 
-                method = 'POST'
-                knoxssApi(target, headers, method, knoxssResponse)
-                processOutput(target, method, knoxssResponse)
+                if args.http_method in ('GET','BOTH'): 
+                    method = 'GET'
+                    knoxssApi(target, headers, method, knoxssResponse)
+                    processOutput(target, method, knoxssResponse)
+            
+                if args.http_method in ('POST','BOTH'): 
+                    method = 'POST'
+                    knoxssApi(target, headers, method, knoxssResponse)
+                    processOutput(target, method, knoxssResponse)
 
     except Exception as e:
+        pauseEvent.clear()
         print(colored('ERROR processUrl 1: ' + str(e), 'red'))   
 
 # Validate the -p argument 
@@ -767,7 +811,7 @@ def main():
     parser.add_argument(
         '-t',
         '--timeout',
-        help='How many seconds to wait for the KNOXSS API to respond before giving up (default: '+str(DEFAULT_TIMEOUT)+' seconds)',
+        help='How many seconds to wait for the KNOXSS API to respond before giving up (default: '+str(DEFAULT_TIMEOUT)+' seconds). If set to 0, then timeout will be used.',
         default=DEFAULT_TIMEOUT,
         type=int,
         metavar="<seconds>",
@@ -784,6 +828,28 @@ def main():
         help='The Discord Webhook to send successful XSS notifications to. This will be used instead of the value in config.yml',
         action='store',
         default='',
+    )
+    parser.add_argument(
+        '-r',
+        '--retries',
+        help='The number of times to retry when having issues connecting to the KNOXSS API (default: '+str(DEFAULT_RETRIES)+')',
+        default=DEFAULT_RETRIES,
+        type=int,
+    )
+    parser.add_argument(
+        '-ri',
+        '--retry-interval',
+        help='How many seconds to wait before retrying when having issues connecting to the KNOXSS API (default: '+str(DEFAULT_RETRY_INTERVAL)+' seconds)',
+        default=DEFAULT_RETRY_INTERVAL,
+        type=int,
+        metavar="<seconds>",
+    )
+    parser.add_argument(
+        '-rb',
+        '--retry-backoff',
+        help='The backoff factor used when retrying when having issues connecting to the KNOXSS API (default: '+str(DEFAULT_RETRY_BACKOFF_FACTOR)+')',
+        default=DEFAULT_RETRY_BACKOFF_FACTOR,
+        type=float,
     )
     parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
     parser.add_argument('--version', action='store_true', help="Show version number")
@@ -822,7 +888,7 @@ def main():
         processInput()
         
         # Show the user the latest API quota       
-        if latestApiCalls is None:
+        if latestApiCalls is None or latestApiCalls == '':
             latestApiCalls = 'Unknown'
         print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
            

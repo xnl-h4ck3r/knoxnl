@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v4.0
+## About - v4.1
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.me/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.me and subscribe!
@@ -53,8 +53,11 @@ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 | -afb | --advanced-filter-bypass | If the advanced filter bypass should be used on the KNOXSS API.                                                                                                                                                                                            |
 | -s   | --success-only           | Only show successful XSS payloads in the CLI output.                                                                                                                                                                                                       |
 | -p   | --processes              | Basic multithreading is done when getting requests for a file of URLs. This argument determines the number of processes (one per URL to check) are run per minute (default: 3). This is due to the rate limit of the KNOXSS API.                           |
-| -t   | --timeout                | How many seconds to wait for the KNOXSS API to respond before giving up (default: 180)                                                                                                                                                                     |
+| -t   | --timeout                | How many seconds to wait for the KNOXSS API to respond before giving up (default: 600). If set to 0, then timeout will be used.                                                                                                                            |
 | -bp  | --burp-piper             | Use if **knoxnl** is called from the Burp Piper extension, so that a request in **Burp Suite** proxy can be tested. See the [Using in Burp Suite Proxy](#using-in-burp-suite-proxy) section below.                                                         |
+| -r   | --retries                | The number of times to retry when having issues connecting to the KNOXSS API (default: 3)                                                                                                                                                                  |
+| -ri  | --retry-interval         | How many seconds to wait before retrying when having issues connecting to the KNOXSS API (default: 30)                                                                                                                                                     |
+| -rb  | --retry-backoff          | The backoff factor used when retrying when having issues connecting to the KNOXSS API (default: 1.5). For example, with defaults, first time will wait for 30 seconds, 2nd time will be 45 (30 x 1.5) seconds, etc.                                        |
 | -v   | --verbose                | Verbose output                                                                                                                                                                                                                                             |
 |      | --version                | Show current version number.                                                                                                                                                                                                                               |
 | -h   | --help                   | show the help message and exit                                                                                                                                                                                                                             |

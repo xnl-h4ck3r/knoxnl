@@ -38,7 +38,7 @@ setup(
     url="https://github.com/xnl-h4ck3r/knoxnl",
     py_modules=["knoxnl"],
     zip_safe=False,
-    install_requires=["argparse","requests","termcolor","pyaml"],
+    install_requires=["argparse","requests","termcolor","pyaml","urlparse3"],
     entry_points={
         'console_scripts': [
             'knoxnl = knoxnl.knoxnl:main',

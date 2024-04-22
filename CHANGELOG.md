@@ -1,5 +1,24 @@
 ## Changelog
 
+- v4.1
+
+  - New
+
+    - Add arg `-r`/`--retries` for the number of times to retry when having issues connecting to the KNOXSS API (default: 3)
+    - Add arg `ri`/`--retry-interval` for how many seconds to wait before retrying when having issues connecting to the KNOXSS API (default: 30 seconds)
+    - Add arg `rb`/`--rety-backoff` for the backoff factor used when retrying when having issues connecting to the KNOXSS API (default: 1.5). For example, with defaults, first time will wait for 30 seconds, 2nd time will be 45 (30 x 1.5) seconds, etc.
+    - Check for the runtime error `Response ended prematurely` when sending to the API. This can happen if the user is using a VPN, which the KNOXSS servers don't seem to like.
+    - If a scheme and domain have been flagged as blocked already, skip other URLs with the same. Include `from urllib.parse import urlparse` and add `urlparse3` to `setup.py` to achieve this.
+    - URL encode any `+` characters in the target URL so they don't get changed to spaces.
+
+  - Changed
+
+    - Change the error `The target website timed out` to `The KNOXSS API timed out getting the response (consider changing -t value)`
+    - Change the error `The target dropped the connection.` to `The KNOXSS API dropped the connection.`
+    - Set the default timeout limit for requests to the KNOXSS API to 600 seconds. The previous default was 180, but this has been resulting in many timeouts as the server response can take a lot longer for some URLs.
+    - If you set `-t`/`--timeout` to 0, it will not request a timeout at all when calling the KNOXSS API.
+    - When adding a blocked domain to the set, include the scheme too because there have been examples where a target blocks KNOXSS for `https://target.com`, but not `http://target.com`.
+
 - v4.0
 
   - New
