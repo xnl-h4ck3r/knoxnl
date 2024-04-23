@@ -305,7 +305,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
         targetData = targetUrl.replace('&', '%26')
     
         # Also encode + so it doesn't get converted to space
-        targetData = targetUrl.replace('+', '%2B')
+        targetData = targetData.replace('+', '%2B')
     
         # If processing a POST
         if method == 'POST' and args.http_method in ('POST','BOTH'):

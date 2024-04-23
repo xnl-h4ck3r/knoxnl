@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.2
+
+  - Change
+
+    - BUG FIX: `&` were not being encoded since the version 4.1
+
 - v4.1
 
   - New
