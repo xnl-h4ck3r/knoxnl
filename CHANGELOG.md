@@ -1,8 +1,30 @@
 ## Changelog
 
+- v4.3
+
+  - New
+
+    - Add new argument `-up`/`--update` to easily update the program to the latest version.
+    - Add new argument `-sb`/`--skip-blocked` to determine whether any URLs wil be skipped if they have resulted in that many 403 responses from the target. This was previously done all the time for more than 5 blocks for a scheme+(sub)domain, bit will only be done if this argument is passed with a value greater than zero. This is useful if you know there is a WAF in place.
+    - If there is a problem with the `session` object before a call is even made to the KNOXSS API, catch the error, display to the user, and set the `knoxssResponse.Error` to `Some kind of network error occurred before calling KNOXSS`.
+    - Save a new file `.apireset` to the default config directory (e.g. `~/.config/knoxnl/`) if a request is returned that has and `API Call` value starting with `1/`. The file will contain the `Timestamp` from the response, converted to the users timezone and increased by 24 hours and 5 minutes. This will be the rough time the API limit will be reset.
+    - Add new argument `-pur`/`--pause-until-reset`. If passed, and the `.apireset` file exists, then when the API limit is reached, it will pause until 24 hours after the first request (when the limit is reset) and then continue again.
+    - Display the API Limit Reset time from the `.apireset` file if it exists. The file will be deleted if the timestamp in the file is over 24 hours ago.
+    - If the `-o`/`--output` value includes a directory, then caused error `[Errno 2] No such file or directory:`. The directory will now be created if it doesn't exist. The `.todo` file will also be created in that same directory.
+    - Add Timestamp to the KNOXSS API response object and retrieve from the KNOXSS JSON response.
+    - Add a Disclaimer to the README and the tool banner.
+    - URL encode any `+` characters in the data for a POST request too.
+    - Show stats when the program ends. This will show the number of requests made to the API, the number of successful, safe, error and skipped.
+
+  - Changed
+
+    - Only add the method+scheme+domain/domain to the blocked list and start skipping if there have been more than the number of occurrences specified by `-skip`/`--skip-blocked` (only if greater than zero).
+    - Change the error message `Target is blocking KNOXSS IP` to `Target returned a "403 Forbidden". There could be WAF in place.`.
+    - When getting the response, and there is no JSON, set the `knoxssResponse.Error` to `knoxssResponseError` instead of `none`. When the KNOXSS returns a response for a non-vulnerable URL, the default value of `knoxssResponse.Error` will be `none`. It needs to be different so isn't accidentally shown as `SAFE`.
+
 - v4.2
 
-  - Change
+  - Changed
 
     - BUG FIX: `&` were not being encoded since the version 4.1
 

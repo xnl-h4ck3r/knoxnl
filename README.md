@@ -1,10 +1,12 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v4.2
+## About - v4.3
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.me/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.me and subscribe!
 This was inspired by the ["knoxssme" tool](https://github.com/edoardottt/lit-bb-hack-tools/tree/main/knoxssme) by @edoardottt2, but developed to allow for greater options.
+
+**DISCLAIMER: We are not responsible for any use, and especially misuse, of this tool or the KNOXSS API**
 
 ## Installation
 
@@ -27,6 +29,12 @@ pip install git+https://github.com/xnl-h4ck3r/knoxnl.git -v
 You can upgrade with
 
 ```bash
+knoxnl -up
+```
+
+OR
+
+```bash
 pip install --upgrade knoxnl
 ```
 
@@ -40,27 +48,30 @@ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 
 ## Usage
 
-| Arg  | Long Arg                 | Description                                                                                                                                                                                                                                                |
-| ---- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| -i   | --input                  | Input to send to KNOXSS API: a single URL, or file of URLs. **NOTE: If you pass a URL, put it in quotes otherwise the shell can interpret `&` characters as instruction to run a background task.**                                                        |
-| -o   | --output                 | The file to save the successful XSS and payloads to. If the file already exist it will just be appended to unless option `-ow` is passed.                                                                                                                  |
-| -ow  | --output-overwrite       | If the output file already exists, it will be overwritten instead of being appended to.                                                                                                                                                                    |
-| -oa  | --output-all             | Write all results to the output file, not just successful one's.                                                                                                                                                                                           |
-| -X   | --http-method            | Which HTTP method to use, values `GET`, `POST` or `BOTH` (default: `GET`). If `BOTH` is chosen, then a `GET` call will be made, followed by a `POST`.                                                                                                      |
-| -pd  | --post-data              | If a POST request is made, this is the POST data passed. It must be in the format `'param1=value&param2=value&param3=value'`. If this isn't passed and query string parameters are used, then these will be used as POST data if POST Method is requested. |
-| -H   | --headers                | Add custom headers to pass with HTTP requests. Pass in the format `'Header1:value1;\|Header2:value2'` (e.g. separate different headers with a pipe \| character).                                                                                          |
-| -A   | --api-key                | The KNOXSS API Key to use. This will be used instead of the value in `config.yml`                                                                                                                                                                          |
-| -afb | --advanced-filter-bypass | If the advanced filter bypass should be used on the KNOXSS API.                                                                                                                                                                                            |
-| -s   | --success-only           | Only show successful XSS payloads in the CLI output.                                                                                                                                                                                                       |
-| -p   | --processes              | Basic multithreading is done when getting requests for a file of URLs. This argument determines the number of processes (one per URL to check) are run per minute (default: 3). This is due to the rate limit of the KNOXSS API.                           |
-| -t   | --timeout                | How many seconds to wait for the KNOXSS API to respond before giving up (default: 600). If set to 0, then timeout will be used.                                                                                                                            |
-| -bp  | --burp-piper             | Use if **knoxnl** is called from the Burp Piper extension, so that a request in **Burp Suite** proxy can be tested. See the [Using in Burp Suite Proxy](#using-in-burp-suite-proxy) section below.                                                         |
-| -r   | --retries                | The number of times to retry when having issues connecting to the KNOXSS API (default: 3)                                                                                                                                                                  |
-| -ri  | --retry-interval         | How many seconds to wait before retrying when having issues connecting to the KNOXSS API (default: 30)                                                                                                                                                     |
-| -rb  | --retry-backoff          | The backoff factor used when retrying when having issues connecting to the KNOXSS API (default: 1.5). For example, with defaults, first time will wait for 30 seconds, 2nd time will be 45 (30 x 1.5) seconds, etc.                                        |
-| -v   | --verbose                | Verbose output                                                                                                                                                                                                                                             |
-|      | --version                | Show current version number.                                                                                                                                                                                                                               |
-| -h   | --help                   | show the help message and exit                                                                                                                                                                                                                             |
+| Arg  | Long Arg                 | Description                                                                                                                                                                                                                                                                  |
+| ---- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| -i   | --input                  | Input to send to KNOXSS API: a single URL, or file of URLs. **NOTE: If you pass a URL, put it in quotes otherwise the shell can interpret `&` characters as instruction to run a background task.**                                                                          |
+| -o   | --output                 | The file to save the successful XSS and payloads to. If the file already exist it will just be appended to unless option `-ow` is passed. If the full path doesn't exist, then any necessary directories will be created.                                                    |
+| -ow  | --output-overwrite       | If the output file already exists, it will be overwritten instead of being appended to.                                                                                                                                                                                      |
+| -oa  | --output-all             | Write all results to the output file, not just successful one's.                                                                                                                                                                                                             |
+| -X   | --http-method            | Which HTTP method to use, values `GET`, `POST` or `BOTH` (default: `GET`). If `BOTH` is chosen, then a `GET` call will be made, followed by a `POST`.                                                                                                                        |
+| -pd  | --post-data              | If a POST request is made, this is the POST data passed. It must be in the format `'param1=value&param2=value&param3=value'`. If this isn't passed and query string parameters are used, then these will be used as POST data if POST Method is requested.                   |
+| -H   | --headers                | Add custom headers to pass with HTTP requests. Pass in the format `'Header1:value1;\|Header2:value2'` (e.g. separate different headers with a pipe \| character).                                                                                                            |
+| -A   | --api-key                | The KNOXSS API Key to use. This will be used instead of the value in `config.yml`                                                                                                                                                                                            |
+| -afb | --advanced-filter-bypass | If the advanced filter bypass should be used on the KNOXSS API.                                                                                                                                                                                                              |
+| -s   | --success-only           | Only show successful XSS payloads in the CLI output.                                                                                                                                                                                                                         |
+| -p   | --processes              | Basic multithreading is done when getting requests for a file of URLs. This argument determines the number of processes (one per URL to check) are run per minute (default: 3). This is due to the rate limit of the KNOXSS API.                                             |
+| -t   | --timeout                | How many seconds to wait for the KNOXSS API to respond before giving up (default: 600). If set to 0, then timeout will be used.                                                                                                                                              |
+| -bp  | --burp-piper             | Use if **knoxnl** is called from the Burp Piper extension, so that a request in **Burp Suite** proxy can be tested. See the [Using in Burp Suite Proxy](#using-in-burp-suite-proxy) section below.                                                                           |
+| -r   | --retries                | The number of times to retry when having issues connecting to the KNOXSS API (default: 3)                                                                                                                                                                                    |
+| -ri  | --retry-interval         | How many seconds to wait before retrying when having issues connecting to the KNOXSS API (default: 30)                                                                                                                                                                       |
+| -rb  | --retry-backoff          | The backoff factor used when retrying when having issues connecting to the KNOXSS API (default: 1.5). For example, with defaults, first time will wait for 30 seconds, 2nd time will be 45 (30 x 1.5) seconds, etc.                                                          |
+| -pur | --pause-until-reset      | If the API Limit reset time is known and the API limit is reached, wait the required time until the limit is reset and continue again. The reset time is only known if knoxnl has run for request number 1 previously. The API rate limit is reset 24 hours after request 1. |
+| -sb  | --skip-blocked           | The number of 403 Forbidden responses from a target (for a given HTTP method + scheme + (sub)domain) before skipping. This is useful if you know the target has a WAF. The default is zero, which means no blocking is done.                                                 |
+| -up  | --update                 | Update knoxnl to the latest version.                                                                                                                                                                                                                                         |
+| -v   | --verbose                | Verbose output                                                                                                                                                                                                                                                               |
+|      | --version                | Show current version number.                                                                                                                                                                                                                                                 |
+| -h   | --help                   | show the help message and exit                                                                                                                                                                                                                                               |
 
 ## config.yml
 
@@ -76,13 +87,13 @@ The `config.yml` file (in the global location based on the OS, e.g. `~/.config/k
 - The API standard rate limit is 5000 requests over a 24 hours period. That means an average of **2.3 requests per minute** so please try to keep this pace **to not overload the system**. Due to this rate limit, if the input is a file or URLs, then only a batch (determined by argument `-p`/`--processes`) will be run per minute.
 - **Generating or Regenerating your API Key** - The API key is in your profile. If you have never generated it you need to hit the button at least once to generate it and save. Any time you need a new API key for security reasons, you can simply hit the button and regenerate it.
 - **Flash Mode Mark - [XSS]** - Provide the `[XSS]` mark in any place of the target's data values to enable Flash Mode which enables KNOXSS to perform a single quick XSS Polyglot based test.
-- At the time of writing this, the daily limit of KNOXSS API calls is **5000**. If you are testing a large file of URLs,it is advisable that you use the `-o` / `--output` option to specify a file where output will be written. If you do reach the API limit with a 24 hour period, this is reset at about 17:00 GMT.
-- If you pass an input file and the API limit is reached, or the Service is Unavailable, part way through the input, all unchecked URLs will be output to an file in the same location, and with the same name as the input file, but with a `.YYYYMMDD_HHMMSS.todo` suffix. You can then rename this file and use this as input at another time.
+
+## Important Notes for knoxnl
+
+- At the time of writing this, the daily limit of KNOXSS API calls is **5000**. If you are testing a large file of URLs, it is advisable that you use the `-o` / `--output` option to specify a file where output will be written. If you do reach the API limit, it resets 24 hours after the first API call was made. If you are processing a file of URLs, you can use the `-pur`/`--pause-until-reset` to wait until the reset happens and then continue (this is only possible if the first request was run by `knoxnl` so it could save the response timestamp).
+- If you pass an input file and the API limit is reached, or the Service is Unavailable, part way through the input, all unchecked URLs will be output to an file in the same location, and with the same name as the input file, but with a `.YYYYMMDD_HHMMSS.todo` suffix. You can then rename this file and use this as input at another time. The `.todo` file will be created in the current directory unless a path is specified in the `-o`/`--output` directory, and then the `.todo` file will be created in the same directory.
 - By default, only successful results are written to the output file.
 - Passing argument `-oa` / `--output-all` will write **ALL** results to the output file, not just successful one's.
-
-## Important Notes fof knoxnl
-
 - The KNOXSS API has a rate limit of no more than 5 URLs processed per minute. If the rate limit is exceeded then you might end up getting blocked by their WAF, and you will not get the results you want. This rate limit is taken into account when passing a file of URLs as input. However, if you keep running for a single URL more than this per minute you wil run into problems. Please respect the rules of their API.
 - The KNOXSS only deals with POST requests with basic post data in the format `'param1=value&param2=value&param3=value'`.
 - If the `-pd`/`--post-data` argument is not passed and a POST request is made, it will use the query string from the URL as post data if it has one.

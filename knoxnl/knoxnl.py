@@ -21,11 +21,13 @@ try:
     from . import __version__
 except:
     pass
-from datetime import datetime
+from datetime import datetime, timedelta
 from requests.adapters import HTTPAdapter, Retry
 import re
 import time
 from urllib.parse import urlparse
+from dateutil import tz
+import subprocess
 
 # Global variables
 stopProgram = False
@@ -36,15 +38,23 @@ needToStop = False
 needToRetry = False
 dontDisplay = False
 successCount = 0
+safeCount = 0
+errorCount = 0
+requestCount = 0
+skipCount = 0
 outFile = None
 fileIsOpen = False
 todoFileName = ''
 currentCount = {}
 configPath = ''
 inputValues = set()
-blockedDomains = set()
+blockedDomains = {}
 HTTP_ADAPTER = None
 retryAttempt = 0
+apiResetPath = ''
+timeAPIReset = None
+forbiddenResponseCount = 0
+latestVersion = ''
 
 pauseEvent = mp.Event()
 
@@ -75,15 +85,14 @@ class knoxss:
     Calls = ''
     Error = ''
     POSTData = ''
+    Timestamp = ''
 
 def showVersion():
+    global latestVersion
     try:
-        
-        try:
-            resp = requests.get('https://raw.githubusercontent.com/xnl-h4ck3r/knoxnl/main/knoxnl/__init__.py',timeout=3)
-        except:
+        if latestVersion == '':
             print('Current knoxnl version '+__version__+' (unable to check if latest)')
-        if __version__ == resp.text.split('=')[1].replace('"',''):
+        elif __version__ == latestVersion:
             print('Current knoxnl version '+__version__+' ('+colored('latest','green')+')\n')
         else:
             print('Current knoxnl version '+__version__+' ('+colored('outdated','red')+')\n')
@@ -99,6 +108,8 @@ def showBanner():
     print(r"|_|\_\_| |_|\___"+colored("/_/  ","red")+colored(r"\_\ "[:-1],"yellow")+colored("_| |_|","green")+colored("_| ","cyan"))
     print(colored("                 by @Xnl-h4ck3r ","magenta"))
     print()
+    print(colored('DISCLAIMER: We are not responsible for any use, and especially misuse, of this tool or the KNOXSS API','yellow'))
+    print()
     showVersion()
 
 # Functions used when printing messages dependant on verbose options
@@ -108,9 +119,13 @@ def verbose():
 def showBlocked():
     global blockedDomains
     try:
-        # If there were any domains that might be blocking KNOXSS, let the user know
-        if len(blockedDomains) > 0:
-            print(colored('The following domains seem to be blocking KNOXSS and might be worth excluding for now:','yellow'),colored(', '.join(blockedDomains),'white'))
+        # Accumulate domains with a count more than the specified limit into a list
+        domainsBlockedLimit = [domain for domain, count in blockedDomains.items() if count > args.skip_blocked-1]
+        if domainsBlockedLimit:
+            # Join the domains into a comma-separated string
+            domainList = ', '.join(domainsBlockedLimit)
+        
+            print(colored('The following domains seem to be blocking KNOXSS and might be worth excluding for now:','yellow'),colored(domainList,'white'))
     except:
         pass
     
@@ -140,7 +155,8 @@ def handler(signal_received, frame):
             pass
         
         # If there were any domains that might be blocking KNOXSS, let the user know
-        showBlocked()
+        if args.skip_blocked > 0:
+            showBlocked()
         
         # Try to close the output file before ending
         try:
@@ -152,7 +168,7 @@ def handler(signal_received, frame):
 # Show the chosen options and config settings
 def showOptions():
 
-    global urlPassed, fileIsOpen, API_URL
+    global urlPassed, fileIsOpen, API_URL, timeAPIReset
             
     try:
         print(colored('Selected config and settings:', 'cyan'))
@@ -203,7 +219,17 @@ def showOptions():
         if args.retries > 0:
             print(colored('-ri: ' + str(args.retry_interval), 'magenta'), 'How many seconds to wait before retrying when having issues connecting to the KNOXSS API.')
             print(colored('-rb: ' + str(args.retry_backoff), 'magenta'), 'The backoff factor used when retrying when having issues connecting to the KNOXSS API.')
-            
+        
+        if args.skip_blocked > 0:
+            print(colored('-sb: ' + str(args.skip_blocked), 'magenta'), 'The number of 403 Forbidden responses from a target (for a given HTTP method + scheme + (sub)domain) before skipping.')
+        
+        if timeAPIReset is not None:
+            print(colored('KNOXSS API Limit Reset Time:', 'magenta'), str(timeAPIReset.strftime("%Y-%m-%d %H:%M")))  
+            if args.pause_until_reset:
+                print(colored('-pur: True', 'magenta'), 'If the API limit is reached, the program will pause and then continue again when it has been reset.')
+        else:
+            if args.pause_until_reset:
+                print(colored('-pur: True', 'magenta'), 'NOT POSSIBLE: Unfortunately the API reset time is currently unknown, so the program cannot be paused and continue when the API limit is reached.')
         print()
 
     except Exception as e:
@@ -219,7 +245,7 @@ def needApiKey():
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
-    global API_URL, API_KEY, DISCORD_WEBHOOK, configPath, HTTP_ADAPTER
+    global API_URL, API_KEY, DISCORD_WEBHOOK, configPath, HTTP_ADAPTER, apiResetPath
     try:
         
         # Put config in global location based on the OS.
@@ -244,11 +270,15 @@ def getConfig():
             print(colored('ERROR getConfig 2: ' + str(e), 'red'))
         
         configPath.absolute
+        # Set config file path and apireset file path
         if configPath == '':
+            apiResetPath = '.apireset'
             configPath = 'config.yml'
         else:
+            apiResetPath = Path(configPath / '.apireset')
             configPath = Path(configPath / 'config.yml')
         config = yaml.safe_load(open(configPath))
+        
         try:
             API_URL = config.get('API_URL')
         except Exception as e:
@@ -294,7 +324,7 @@ def getConfig():
             
 # Call the KNOXSS API
 def knoxssApi(targetUrl, headers, method, knoxssResponse):
-    global latestApiCalls, rateLimitExceeded, needToStop, dontDisplay, HTTP_ADAPTER, inputValues, needToRetry
+    global latestApiCalls, rateLimitExceeded, needToStop, dontDisplay, HTTP_ADAPTER, inputValues, needToRetry, requestCount
     try:
         apiHeaders = {'X-API-KEY' : API_KEY, 
                      'Content-Type' : 'application/x-www-form-urlencoded',
@@ -313,7 +343,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
             
             # If the --post-data argument was passed, use those values
             if args.post_data != '':
-                postData = args.post_data.replace('&', '%26')
+                postData = args.post_data.replace('&', '%26').replace('+', '%2B')
                 # If the target has query string parameters, remove them
                 if '?' in targetUrl:
                     targetData = targetData.split('?')[0]
@@ -347,9 +377,16 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
             while tryAgain:
                 tryAgain = False
                 try:
-                    session = requests.Session()
-                    session.mount('https://', HTTP_ADAPTER)
+                    try:
+                        session = requests.Session()
+                        session.mount('https://', HTTP_ADAPTER)
+                    except Exception as e:
+                        print(colored(':( There was a problem setting up a network session: ' + str(e), 'red'))
+                        knoxssResponse.Error = 'Some kind of network error occurred before calling KNOXSS'
+                        return
+                    
                     # If a session timeout of 0 is passed, don't provide a timeout value.
+                    requestCount = requestCount + 1
                     if args.timeout == 0:
                         resp = session.post(
                             url=API_URL,
@@ -398,7 +435,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         if jsonResponse == '':
                             knoxssResponse.Error = fullResponse
                         else:
-                            knoxssResponse.Error = 'none'
+                            knoxssResponse.Error = 'No JSON response found'
                             
                         # If the error has "try again", and we haven't already tried before, set to True to try one more time
                         if 'expiration time reset' in fullResponse.lower():
@@ -418,14 +455,17 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                             if knoxssResponse.Error == 'service unavailable':
                                 needToRetry = True
                             # If the API rate limit is exceeded, flag to stop
-                            elif knoxssResponse.Error == 'API rate limit exceeded.':
+                            elif latestApiCalls == '22/5000': #knoxssResponse.Error == 'API rate limit exceeded.':
                                 rateLimitExceeded = True
-                                needToStop = True
                                 knoxssResponse.Calls = 'API rate limit exceeded!'
+                                # Flag to stop if we aren't going to wait until the API limit is reset
+                                if not (timeAPIReset is not None and args.pause_until_reset):
+                                    needToStop = True
                             else: # remove the URL from the int input set
                                 inputValues.discard(targetUrl)
                                 
                             knoxssResponse.POSTData = str(jsonResponse['POST Data'])
+                            knoxssResponse.Timestamp = str(jsonResponse['Timestamp'])
                         
                     except Exception as e:
                         knoxssResponse.Calls = 'Unknown'
@@ -466,6 +506,19 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
     except Exception as e:
         print(colored('ERROR knoxss 1:  ' + str(e), 'red'))
 
+def checkForAlteredParams(url):
+    # Show a warning if it looks like the user has tampered with the parameter values before sending to knoxnl. Some indications of this are using FUZZ and also Gxss.
+    # Show a warning if any XSS payloads appear to be included in the URL already
+    try:
+        if '=FUZZ' in url or '=Gxss' in url:
+            print(colored('WARNING: It appears the URL may have been manually changed by yourself (or another tool) first. KNOXSS might not work as expected without the default values of parameters (some parameters might be value sensitive). Just pass original URLs to knoxnl.', 'yellow'))
+        regexCheck = r'<[A-Z]+|alert([^\}]*)|javascript:'
+        regexCheckCompiled = re.compile(regexCheck, re.IGNORECASE)
+        if regexCheckCompiled.search(url):
+            print(colored('WARNING: It appears the URL may already include some XSS payload. If that\'s correct, KNOXSS won\'t work as expected since it\'s not meant to receive XSS payloads, but to provide them.', 'yellow'))
+    except Exception as e:
+        print(colored('ERROR checkForAlteredParams 1:  ' + str(e), 'red'))
+        
 def processInput():
     global urlPassed, latestApiCalls, stopProgram, inputValues, todoFileName
     try:
@@ -535,6 +588,9 @@ def processInput():
             if '://' not in inputArg:
                 print(colored('WARNING: Input "'+inputArg+'" should include a scheme. Using https by default...', 'yellow'))
                 inputArg = 'https://'+inputArg
+            # Check for non default values of parameters
+            checkForAlteredParams(inputArg)
+
             processUrl(inputArg)
         else: # It's a file of URLs
             try:
@@ -578,9 +634,48 @@ def discordNotify(target,poc):
             print(colored('WARNING: Failed to send notification to Discord - ' + str(e), 'yellow'))
     except Exception as e:
         print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
+
+def getAPILimitReset():
+    global apiResetPath, timeAPIReset
+    try:
+        # If the .apireset file exists then get the API reset time
+        if os.path.exists(apiResetPath):
+            # Read the timestamp from the file
+            with open(apiResetPath, 'r') as file:
+                timeAPIReset = datetime.strptime(file.read().strip(), '%Y-%m-%d %H:%M')
+    
+        # If the timestamp is more than 24 hours ago, then delete the file and set the timeAPIReset back to None
+        if timeAPIReset is not None and (datetime.now() - timeAPIReset) > timedelta(hours=24):
+            timeAPIReset = None
+            # If the .apireset file already exists then delete it
+            if os.path.exists(apiResetPath):
+                os.remove(apiResetPath)
+
+    except Exception as e:
+        print(colored('ERROR getAPILimitReset 1: ' + str(e), 'red'))
+        
+def setAPILimitReset(timestamp):
+    global apiResetPath, latestApiCalls, timeAPIReset
+    try:
+        # Convert the timestamp to the local timezone and add 24 hours and 5 minutes
+        timestamp = datetime.strptime(timestamp, '%a, %d %b %Y %H:%M:%S %z')
+        localTimezone = tz.tzlocal()
+        localTimestamp = timestamp.astimezone(localTimezone)
+        timeAPIReset = localTimestamp + timedelta(hours=24, minutes=5)
+
+        # If the .apireset file already exists then delete it
+        if os.path.exists(apiResetPath):
+            os.remove(apiResetPath)
+            
+        # Write the new API limit reset time to the .apireset file, and set the global variable
+        with open(apiResetPath, 'w') as file:
+            file.write(timeAPIReset.strftime('%Y-%m-%d %H:%M'))
+        
+    except Exception as e:
+        print(colored('ERROR setAPILimitReset 1: ' + str(e), 'red'))
         
 def processOutput(target, method, knoxssResponse):
-    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry
+    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry, forbiddenResponseCount, errorCount, safeCount, requestCount, skipCount
     try:
         if knoxssResponse.Error != 'FAIL':
                 
@@ -592,19 +687,23 @@ def processOutput(target, method, knoxssResponse):
                        knoxssResponseError = '403 Forbidden - Check http://knoxss.me manually and if you are blocked, contact Twitter/X @KN0X55 or brutelogic@null.net'
                        needToStop = True
                     # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
-                    if 'InvalidChunkLength' in knoxssResponseError:
+                    elif 'InvalidChunkLength' in knoxssResponseError:
                         knoxssResponseError = 'The API Timed Out'
                         needToRetry = True
-                    # If the error has "can\'t test it (forbidden)" it means the target is blocking KNOXSS IP address
-                    if 'can\'t test it (forbidden)' in knoxssResponseError:
-                        knoxssResponseError = 'Target is blocking KNOXSS IP'
-                        try:
-                            parsedTarget = urlparse(target)
-                            domain = parsedTarget.scheme + '://' + parsedTarget.netloc
-                            blockedDomains.add(domain)
-                        except:
-                            pass
-                    
+                    # If the error has "can\'t test it (forbidden)" it means the a 403 was returned by the target
+                    elif 'can\'t test it (forbidden)' in knoxssResponseError:
+                        knoxssResponseError = 'Target returned a "403 Forbidden". There could be WAF in place.'
+                        # If requested to skip blocked domains after a limit, then save them
+                        if args.skip_blocked > 0:
+                            try:
+                                parsedTarget = urlparse(target)
+                                domain = '(' + method + ') ' + str(parsedTarget.scheme + '://' + parsedTarget.netloc)
+                                pauseEvent.set()
+                                blockedDomains[domain] = blockedDomains.get(domain, 0) + 1
+                                pauseEvent.clear()
+                            except:
+                                pass
+                        
                     # If method is POST, remove the query string from the target and show the post data in [ ] 
                     if method == 'POST':
                         try:
@@ -619,16 +718,21 @@ def processOutput(target, method, knoxssResponse):
                                 target = target + ' [' + querystring + ']'                            
                     
                     if not dontDisplay:        
-                        xssText = '[ ERR! ] - (' + method + ')  ' + target + '  KNOXSS ERR: ' + knoxssResponseError
-                        if urlPassed or rateLimitExceeded:
+                        xssText = '[ ERR! ] - (' + method + ') ' + target + '  KNOXSS ERR: ' + knoxssResponseError
+                        errorCount = errorCount + 1
+                        if urlPassed:
                             print(colored(xssText, 'red'))
                         else:
                             print(colored(xssText, 'red'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
                             outFile.write(xssText + '\n')
             else:
+                # If it is a new reset time then replace the .apireset file
+                if knoxssResponse.Timestamp != '' and latestApiCalls.startswith('1/'):
+                    setAPILimitReset(knoxssResponse.Timestamp)
+                    
                 if knoxssResponse.XSS == 'true':
-                    xssText = '[ XSS! ] - (' + method + ')  ' + knoxssResponse.PoC
+                    xssText = '[ XSS! ] - (' + method + ') ' + knoxssResponse.PoC
                     if urlPassed:
                         print(colored(xssText, 'green'))
                     else:
@@ -642,7 +746,8 @@ def processOutput(target, method, knoxssResponse):
                         outFile.write(xssText + '\n')
                 else:
                     if not args.success_only:
-                        xssText = '[ SAFE ] - (' + method + ')  ' + target
+                        xssText = '[ SAFE ] - (' + method + ') ' + target
+                        safeCount = safeCount + 1
                         if urlPassed:
                             print(colored(xssText, 'yellow'))
                         else:
@@ -656,14 +761,27 @@ def processOutput(target, method, knoxssResponse):
 # Process one URL        
 def processUrl(target):
     
-    global stopProgram, latestApiCalls, urlPassed, needToStop, needToRetry, retryAttempt
+    global stopProgram, latestApiCalls, urlPassed, needToStop, needToRetry, retryAttempt, rateLimitExceeded, timeAPIReset, skipCount, apiResetPath
     try:    
         # If the event is set, pause for a while until its unset again
         while pauseEvent.is_set() and not stopProgram and not needToStop:
             time.sleep(1)
-            
+        
         if not stopProgram and not needToStop:
-                
+            
+            # If the API Limit was exceeded, and we want to wait until the limit is reset pause all processes until that time
+            if rateLimitExceeded and timeAPIReset is not None and args.pause_until_reset:
+                # Set the event to pause all processes
+                pauseEvent.set()
+                print(colored(f'WAITING UNTIL {str(timeAPIReset.strftime("%Y-%m-%d %H:%M"))} WHEN THEN API LIMIT HAS BEEN RESET...','yellow'))
+                time_difference = (timeAPIReset - datetime.now()).total_seconds()
+                timeAPIReset = None
+                os.remove(apiResetPath)
+                time.sleep(time_difference)
+                print(colored('API LIMIT HAS BEEN RESET. RESUMING...','yellow'))
+                # Reset the event for to unpause all processes
+                pauseEvent.clear()
+                    
             # If we need to try again because of an KNOXSS error, then delay
             if needToRetry and args.retries > 0:
                 if retryAttempt < args.retries:
@@ -693,21 +811,51 @@ def processUrl(target):
             
             # If the domain has already been flagged as blocked, then skip it and remove from the input values so not written to the .todo file
             parsedTarget = urlparse(target)
-            domain = parsedTarget.scheme + '://' + parsedTarget.netloc
-            if domain in blockedDomains:
-                print(colored('[ SKIP ] - ' + domain + ' has already been flagged as blocked, so skipping ' + target, 'yellow', attrs=['dark']))
-                inputValues.discard(target)
-            else:
-                headers = args.headers.strip()
-                knoxssResponse=knoxss()        
+ 
+            headers = args.headers.strip()
+            knoxssResponse=knoxss()        
 
-                if args.http_method in ('GET','BOTH'): 
-                    method = 'GET'
+            if args.http_method in ('GET','BOTH'): 
+                method = 'GET'
+                domain = '(' + method + ') ' + str(parsedTarget.scheme + '://' + parsedTarget.netloc)
+                
+                # If skipping blocked domains was requested, check if the domain is in blockedDomains, if not, add it with count 0
+                if args.skip_blocked > 0:
+                    while pauseEvent.is_set():
+                        time.sleep(1)
+                    pauseEvent.set()
+                    if domain not in blockedDomains:
+                        blockedDomains[domain] = 0
+                    pauseEvent.clear()
+                
+                # If skipping blocked domains was requested and the domain has been blocked more than the requested number of times, then skip, otherwise process  
+                if args.skip_blocked > 0 and blockedDomains[domain] > args.skip_blocked-1:
+                    print(colored('[ SKIP ] - ' + domain + ' has already been flagged as blocked, so skipping ' + target, 'yellow', attrs=['dark']))
+                    skipCount = skipCount + 1
+                    inputValues.discard(target)
+                else:
                     knoxssApi(target, headers, method, knoxssResponse)
                     processOutput(target, method, knoxssResponse)
-            
-                if args.http_method in ('POST','BOTH'): 
-                    method = 'POST'
+        
+            if args.http_method in ('POST','BOTH'): 
+                method = 'POST'
+                domain = '(' + method + ') ' + str(parsedTarget.scheme + '://' + parsedTarget.netloc)
+                
+                # If skipping blocked domains was requested, check if the domain is in blockedDomains, if not, add it with count 0
+                if args.skip_blocked > 0:
+                    while pauseEvent.is_set():
+                        time.sleep(1)
+                    pauseEvent.set()
+                    if domain not in blockedDomains:
+                        blockedDomains[domain] = 0
+                    pauseEvent.clear()
+                
+                # If skipping blocked domains was requested and the domain has been blocked more than the requested number of times, then skip, otherwise process  
+                if args.skip_blocked > 0 and blockedDomains[domain] > args.skip_blocked-1:
+                    print(colored('[ SKIP ] - ' + domain + ' has already been flagged as blocked, so skipping ' + target, 'yellow', attrs=['dark']))
+                    skipCount = skipCount + 1
+                    inputValues.discard(target)
+                else:
                     knoxssApi(target, headers, method, knoxssResponse)
                     processOutput(target, method, knoxssResponse)
 
@@ -721,10 +869,18 @@ def processes_type(x):
     if x < 1 or x > 5:
         raise argparse.ArgumentTypeError('The number of processes must be between 1 and 5')     
     return x
-                                
+
+def updateProgram():
+    try:
+        # Execute pip install --upgrade knoxnl
+        subprocess.run(['pip', 'install', '--upgrade', 'knoxnl'], check=True)
+        print(colored(f'knoxnl successfully updated {__version__} -> {latestVersion} (latest) 🤘', 'green'))
+    except subprocess.CalledProcessError as e:
+        print(colored(f'Unable to update knoxnl to version {latestVersion}: {str(e)}', 'red'))
+                                       
 # Run knoXnl
 def main():
-    global args, latestApiCalls, urlPassed, successCount, fileIsOpen, outFile, needToStop, todoFileName, blockedDomains
+    global args, latestApiCalls, urlPassed, successCount, fileIsOpen, outFile, needToStop, todoFileName, blockedDomains, latestVersion, safeCount, errorCount, requestCount, skipCount
     
     # Tell Python to run the handler() function when SIGINT is received
     signal(SIGINT, handler)
@@ -851,6 +1007,25 @@ def main():
         default=DEFAULT_RETRY_BACKOFF_FACTOR,
         type=float,
     )
+    parser.add_argument(
+        '-pur',
+        '--pause-until-reset',
+        action='store_true',
+        help='If the API Limit reset time is known and the API limit is reached, wait the required time until the limit is reset and continue again. The reset time is only known if knoxnl has run for request number 1 previously. The API rate limit is reset 24 hours after request 1.',
+    )
+    parser.add_argument(
+        '-sb',
+        '--skip-blocked',
+        help='The number of 403 Forbidden responses from a target (for a given HTTP method + scheme + (sub)domain) before skipping. This is useful if you know the target has a WAF. The default is zero, which means no blocking is done.',
+        default=0,
+        type=int,
+    )
+    parser.add_argument(
+        '-up',
+        '--update',
+        action='store_true',
+        help='Update knoxnl to the latest version.',
+    )
     parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
     parser.add_argument('--version', action='store_true', help="Show version number")
     args = parser.parse_args()
@@ -859,21 +1034,50 @@ def main():
     if args.version:
         print(colored('knoxnl - v' + __version__,'cyan'))
         sys.exit()
-        
+
+    # Get the latest version
+    try:
+        resp = requests.get('https://raw.githubusercontent.com/xnl-h4ck3r/knoxnl/main/knoxnl/__init__.py',timeout=3)
+        latestVersion = resp.text.split('=')[1].replace('"','')
+    except:
+        pass
+                        
+    showBanner()
+
+    # If --update was passed, update to the latest version
+    if args.update:
+        try:
+            if latestVersion == '':
+                print(colored('Unable to check the latest version. Check your internet connection.', 'red'))
+            elif __version__ != latestVersion:
+                updateProgram()
+                sys.exit()
+        except Exception as e:
+            print(colored(f'ERROR: Unable to update - {str(e)}','red'))
+             
     # If no input was given, raise an error
     if sys.stdin.isatty():
         if args.input is None:
             print(colored('You need to provide an input with -i argument or through <stdin>.', 'red'))
             sys.exit()
             
-    showBanner()
-
     # Get the config settings from the config.yml file
     getConfig()
+    
+    # Get the API reset time from the .apireset file
+    getAPILimitReset()
 
     # If -o (--output) argument was passed then open the output file
     if args.output != "":
         try:
+            # If the filename has any "/" in it, remove the contents after the last one to just get the path and create the directories if necessary
+            try:
+                output_path = os.path.abspath(os.path.expanduser(args.output))
+                output_dir = os.path.dirname(output_path)
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+            except Exception as e:
+                pass
             # If argument -ow was passed and the file exists, overwrite it, otherwise append to it
             if args.output_overwrite:
                 outFile = open(os.path.expanduser(args.output), "w")
@@ -902,9 +1106,16 @@ def main():
             except Exception as e:
                 print(colored('Was unable to write .todo file: '+str(e),'red'))
         
-        showBlocked()
-            
-        # Report if any successful XSS was found this time
+        if args.skip_blocked > 0:
+            showBlocked()
+        
+        # Report number of Safe, Error and Skipped results
+        if args.skip_blocked > 0:
+            print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, SAFE: {str(safeCount)}, ERR!: {str(errorCount)}, SKIP: {str(skipCount)})','cyan'))
+        else:
+             print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, SAFE: {str(safeCount)}, ERR!: {str(errorCount)})','cyan'))
+             
+        # Report if any successful XSS was found this time. 
         # If the console can't display 🤘 then an error will be raised to try without
         try:
             if successCount > 0:
