@@ -455,7 +455,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                             if knoxssResponse.Error == 'service unavailable':
                                 needToRetry = True
                             # If the API rate limit is exceeded, flag to stop
-                            elif latestApiCalls == '22/5000': #knoxssResponse.Error == 'API rate limit exceeded.':
+                            elif knoxssResponse.Error == 'API rate limit exceeded.':
                                 rateLimitExceeded = True
                                 knoxssResponse.Calls = 'API rate limit exceeded!'
                                 # Flag to stop if we aren't going to wait until the API limit is reset

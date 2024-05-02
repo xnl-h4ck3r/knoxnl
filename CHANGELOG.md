@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.4
+
+  - Changed
+
+    - Fix a stupid bug I left in the last update while trying to test!
+
 - v4.3
 
   - New
