@@ -376,6 +376,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
             tryAgain = True
             while tryAgain:
                 tryAgain = False
+                fullResponse = None
                 try:
                     try:
                         session = requests.Session()
@@ -413,8 +414,6 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         knoxssResponse.Error = 'The KNOXSS API dropped the connection.'
                     elif 'read timed out' in str(e).lower():
                         knoxssResponse.Error = 'The KNOXSS API timed out getting the response (consider changing -t value)'
-                        needToRetry = False
-                        fullResponse = ''
                     else:
                         knoxssResponse.Error = 'Unhandled error: ' + str(e)
                 
@@ -426,18 +425,20 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         print('     Data: ' + data)
                         print('KNOXSS API response:')
                         print(fullResponse)
-                        
-                    knoxssResponse.Code = str(resp.status_code)
+                    
+                    try:    
+                        knoxssResponse.Code = str(resp.status_code)
+                    except:
+                        knoxssResponse.Code = 'Unknown'
                     
                     # Try to get the JSON response
                     try:
-                        jsonResponse = json.loads(fullResponse)
-                        if jsonResponse == '':
-                            knoxssResponse.Error = fullResponse
-                        else:
+                        try:
+                            jsonResponse = json.loads(fullResponse)
+                        except:
                             knoxssResponse.Error = 'No JSON response found'
                             
-                        # If the error has "try again", and we haven't already tried before, set to True to try one more time
+                        # If the error has "expiration time reset", and we haven't already tried before, set to True to try one more time
                         if 'expiration time reset' in fullResponse.lower():
                             if tryAgain:
                                 tryAgain = False

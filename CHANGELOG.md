@@ -1,5 +1,12 @@
 ## Changelog
 
+- v4.5
+
+  - Changed
+
+    - Fix the bug that shows `:( There was a problem calling KNOXSS API: local variable 'resp' referenced before assignment` in certain situations where the KNOXSS API has initially timed out.
+    - Remove `argparse` from `setup.py` because it is a Python standard module.
+
 - v4.4
 
   - Changed
