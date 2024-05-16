@@ -2,6 +2,10 @@
 
 - v4.5
 
+  - New
+
+    - In the output `API calls made so far today`, also add the API limit reset time, if known.
+
   - Changed
 
     - Fix the bug that shows `:( There was a problem calling KNOXSS API: local variable 'resp' referenced before assignment` in certain situations where the KNOXSS API has initially timed out.

@@ -433,10 +433,6 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     
                     # Try to get the JSON response
                     try:
-                        try:
-                            jsonResponse = json.loads(fullResponse)
-                        except:
-                            knoxssResponse.Error = 'No JSON response found'
                             
                         # If the error has "expiration time reset", and we haven't already tried before, set to True to try one more time
                         if 'expiration time reset' in fullResponse.lower():
@@ -444,7 +440,9 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                                 tryAgain = False
                             else:
                                 tryAgain = True
-                        else:        
+                        else:
+                            jsonResponse = json.loads(fullResponse)
+                            
                             knoxssResponse.XSS = str(jsonResponse['XSS'])
                             knoxssResponse.PoC = str(jsonResponse['PoC'])
                             knoxssResponse.Calls = str(jsonResponse['API Call'])
@@ -472,7 +470,6 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         knoxssResponse.Calls = 'Unknown'
                         if fullResponse is None:
                             fullResponse = ''
-                            knoxssResponse.Error = 'Empty response from API'
 
                         # The response probably wasn't JSON, so check the response message
                         if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
@@ -491,6 +488,9 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         elif 'type of target page can\'t lead to xss' in fullResponse.lower(): 
                             knoxssResponse.Error = 'XSS is not possible with the requested URL'
                             inputValues.discard(targetUrl)
+                        
+                        elif fullResponse == '':
+                            knoxssResponse.Error = 'Empty response from API'
                             
                         else:
                             print(colored('Something went wrong: '+str(e),'red'))
@@ -1095,7 +1095,10 @@ def main():
         # Show the user the latest API quota       
         if latestApiCalls is None or latestApiCalls == '':
             latestApiCalls = 'Unknown'
-        print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
+        if timeAPIReset is not None:
+            print(colored('\nAPI calls made so far today - ' + latestApiCalls + ' (API Limit Reset Time: ' +str(timeAPIReset.strftime("%Y-%m-%d %H:%M")) + ')\n', 'cyan'))
+        else:
+            print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
            
         # If a file was passed, there is a reason to stop, write the .todo file and let the user know about it
         if needToStop and not urlPassed and not args.burp_piper:
