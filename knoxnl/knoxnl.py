@@ -212,9 +212,8 @@ def showOptions():
         if args.headers != '':
             print(colored('-H: ' + args.headers, 'magenta'), 'HTTP Headers passed with requests.')
             
-        print(colored('-afb: ' + str(args.advanced_filter_bypass), 'magenta'), 'Whether the Advanced Filter Bypass option is passed to KNOXSS API.')
         print(colored('-t: ' + str(args.timeout), 'magenta'), 'The number of seconds to wait for KNOXSS API to respond.')
-        
+  
         print(colored('-r: ' + str(args.retries), 'magenta'), 'The number of times to retry when having issues connecting to the KNOXSS API.')
         if args.retries > 0:
             print(colored('-ri: ' + str(args.retry_interval), 'magenta'), 'How many seconds to wait before retrying when having issues connecting to the KNOXSS API.')
@@ -359,10 +358,6 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
         # Add the post data if necessary
         if method == 'POST':
             data = data + '&post=' + postData
-
-        # Add the Advanced Filter Bypass option if required
-        if args.advanced_filter_bypass:
-            data = data + '&afb=1'
 
         # Add Headers if required
         if headers != '':
@@ -747,7 +742,7 @@ def processOutput(target, method, knoxssResponse):
                         outFile.write(xssText + '\n')
                 else:
                     if not args.success_only:
-                        xssText = '[ SAFE ] - (' + method + ') ' + target
+                        xssText = '[ NONE ] - (' + method + ') ' + target
                         safeCount = safeCount + 1
                         if urlPassed:
                             print(colored(xssText, 'yellow'))
@@ -945,12 +940,6 @@ def main():
         default='',
     )
     parser.add_argument(
-        '-afb',
-        '--advanced-filter-bypass',
-        action='store_true',
-        help='If the advanced filter bypass should be used on the KNOXSS API.',
-    )
-    parser.add_argument(
         '-s',
         '--success-only',
         action='store_true',
@@ -1113,11 +1102,11 @@ def main():
         if args.skip_blocked > 0:
             showBlocked()
         
-        # Report number of Safe, Error and Skipped results
+        # Report number of None, Error and Skipped results
         if args.skip_blocked > 0:
-            print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, SAFE: {str(safeCount)}, ERR!: {str(errorCount)}, SKIP: {str(skipCount)})','cyan'))
+            print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)}, SKIP: {str(skipCount)})','cyan'))
         else:
-             print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, SAFE: {str(safeCount)}, ERR!: {str(errorCount)})','cyan'))
+             print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)})','cyan'))
              
         # Report if any successful XSS was found this time. 
         # If the console can't display 🤘 then an error will be raised to try without

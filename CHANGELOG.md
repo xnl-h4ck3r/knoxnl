@@ -1,5 +1,12 @@
 ## Changelog
 
+- v4.6
+
+  - Changed
+
+    - Changed the response of `[ SAFE ]` to `[ NONE ]` because just because the service doesn't find XSS, it doesn't necessarily mean XSS is impossible on that URL.
+    - Remove the `-afb` argument because this is no longer used in the API and is done automatically.
+
 - v4.5
 
   - New
