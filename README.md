@@ -1,9 +1,9 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v4.6
+## About - v4.7
 
-This is a python wrapper around the amazing [KNOXSS API](https://knoxss.me/?page_id=2729) by Brute Logic.
-To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.me and subscribe!
+This is a python wrapper around the amazing [KNOXSS API](https://knoxss.pro/?page_id=2729) by Brute Logic.
+To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.pro and subscribe!
 This was inspired by the ["knoxssme" tool](https://github.com/edoardottt/lit-bb-hack-tools/tree/main/knoxssme) by @edoardottt2, but developed to allow for greater options.
 
 **DISCLAIMER: We are not responsible for any use, and especially misuse, of this tool or the KNOXSS API**
@@ -77,7 +77,7 @@ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 The `config.yml` file (in the global location based on the OS, e.g. `~/.config/knoxnl/config.yml`) has the keys which can be updated to suit your needs:
 
 - `API_URL` - This can be set to the KNOXSS API endpoint, if and when it is changed
-- `API_KEY` - Your KNOXSS API key that you will have generated on https://knoxss.me/
+- `API_KEY` - Your KNOXSS API key that you will have generated on https://knoxss.pro/
 - `DISCORD_WEBHOOK` - Your discord webhook URL if you want to be notified of successful XSS
 
 ## Important Notes from KNOXSS API Guidelines

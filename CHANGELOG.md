@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.7
+
+  - Changed
+
+    - Change all references of knoxss.me to knoxss.pro
+
 - v4.6
 
   - Changed

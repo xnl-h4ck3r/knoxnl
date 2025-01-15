@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Python 3
-# A wrapper around the amazing KNOXSS API (https://knoxss.me/?page_id=2729) by Brute Logic (@brutelogic)
+# A wrapper around the amazing KNOXSS API (https://knoxss.pro/?page_id=2729) by Brute Logic (@brutelogic)
 # Inspired by "knoxssme" by @edoardottt2
 # Full help here: https://github.com/xnl-h4ck3r/knoxnl#readme
 # Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) ☕ (I could use the caffeine!)
@@ -234,13 +234,13 @@ def showOptions():
     except Exception as e:
         print(colored('ERROR showOptions: ' + str(e), 'red'))
 
-# If an API key wasn't supplied, or was invalid, then point the user to https://knoxss.me
+# If an API key wasn't supplied, or was invalid, then point the user to https://knoxss.pro
 def needApiKey():
     # If the console can't display 🤘 then an error will be raised to try without
     try:
-        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe?\nDon\'t forget to generate and SAVE your API key before using it here! 🤘\n', 'green')) 
+        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.pro and subscribe?\nDon\'t forget to generate and SAVE your API key before using it here! 🤘\n', 'green')) 
     except:
-        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.me and subscribe?\nDon\'t forget to generate and SAVE your API key before using it here!\n', 'green')) 
+        print(colored('Haven\'t got an API key? Why not head over to https://knoxss.pro and subscribe?\nDon\'t forget to generate and SAVE your API key before using it here!\n', 'green')) 
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
@@ -468,7 +468,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
 
                         # The response probably wasn't JSON, so check the response message
                         if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
-                            print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key. You might need to login on https://knoxss.me and go to your Profile and click "Save All Changes".', 'red'))
+                            print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key. You might need to login on https://knoxss.pro and go to your Profile and click "Save All Changes".', 'red'))
                             needToStop = True
                             dontDisplay = True
                             
@@ -680,7 +680,7 @@ def processOutput(target, method, knoxssResponse):
                     knoxssResponseError = knoxssResponse.Error
                     # If there is a 403, it maybe because the users IP is blocked on the KNOXSS firewall
                     if knoxssResponse.Code == "403":
-                       knoxssResponseError = '403 Forbidden - Check http://knoxss.me manually and if you are blocked, contact Twitter/X @KN0X55 or brutelogic@null.net'
+                       knoxssResponseError = '403 Forbidden - Check http://knoxss.pro manually and if you are blocked, contact Twitter/X @KN0X55 or brutelogic@null.net'
                        needToStop = True
                     # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
                     elif 'InvalidChunkLength' in knoxssResponseError:
