@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v4.7
+## About - v4.8
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.pro/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.pro and subscribe!
@@ -67,6 +67,9 @@ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 | -rb  | --retry-backoff     | The backoff factor used when retrying when having issues connecting to the KNOXSS API (default: 1.5). For example, with defaults, first time will wait for 30 seconds, 2nd time will be 45 (30 x 1.5) seconds, etc.                                                          |
 | -pur | --pause-until-reset | If the API Limit reset time is known and the API limit is reached, wait the required time until the limit is reset and continue again. The reset time is only known if knoxnl has run for request number 1 previously. The API rate limit is reset 24 hours after request 1. |
 | -sb  | --skip-blocked      | The number of 403 Forbidden responses from a target (for a given HTTP method + scheme + (sub)domain) before skipping. This is useful if you know the target has a WAF. The default is zero, which means no blocking is done.                                                 |
+| -fn  | --force-new         | Forces KNOXSS to do a new scan instead of getting cached results.                                                                                                                                                                                                            |
+| -rl  | --runtime-log       | Provides a live runtime log of the KNOXSS scan.                                                                                                                                                                                                                              |
+| -nt  | --no-todo           | Do not create the .todo file if the input file is not completed because of issues with API, connection, etc.                                                                                                                                                                 |
 | -up  | --update            | Update knoxnl to the latest version.                                                                                                                                                                                                                                         |
 | -v   | --verbose           | Verbose output                                                                                                                                                                                                                                                               |
 |      | --version           | Show current version number.                                                                                                                                                                                                                                                 |
@@ -108,7 +111,7 @@ Pass a single URL:
 **NOTE: If you pass a URL, put it in quotes otherwise the shell can interpret `&` characters as instruction to run a background task.**
 
 ```
-knoxnl -i "https://brutelogic.com.br/xss.php"
+knoxnl -i "https://x55.is/brutelogic/xss.php"
 ```
 
 Or a file of URLs:
@@ -122,13 +125,13 @@ knoxnl -i ~/urls.txt
 Test a single URL for both GET and POST. if it is successful, the payload will be output to `output.txt`. In this case, an API key is provided, overriding any in `config.yml` if it exists. Also, the parameter value has been passed as `[XSS]` which will request the KNOXSS API to enable Flash Mode which performs a single quick XSS Polyglot based test:
 
 ```
-knoxnl -i "https://brutelogic.com.br/xss.php?b3=[XSS]" -X BOTH -o output.txt -A 93c864f5-af3a-4f6a-8b25-8662bc8b5ab6
+knoxnl -i "https://x55.is/brutelogic/xss.php?b3=[XSS]" -X BOTH -o output.txt -A 93c864f5-af3a-4f6a-8b25-8662bc8b5ab6
 ```
 
 Test a single URL for POST and pass post body data:
 
 ```
-knoxnl -i "https://brutelogic.com.br/xss.php" -X POST -pd user=xnl -o output.txt
+knoxnl -i "https://x55.is/brutelogic/xss.php" -X POST -pd user=xnl -o output.txt
 ```
 
 Pass cookies and an auth header for a single URL:

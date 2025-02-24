@@ -1,5 +1,18 @@
 ## Changelog
 
+- v4.8
+
+  - New
+
+    - Add argument `-fn`/`--force-new`. The Force New feature of the KNOXSS API is new in v4. Passing the argument forces KNOXSS to do a new scan instead of getting cached results.
+    - Add argument `-rl`/`--runtime-log`. The Runtime Log feature of the KNOXSS API is new in v4. Passing the argument provides a live runtime log of the KNOXSS scan.
+    - Add argument `-nt`/`--no-todo` to not create a `.todo` file if the input file is not completed because of errors.
+    - If the "Error" in the KNOXSS response included the text "please retry" then it will be retried, and therefore added to the .todo file if stopped.
+
+  - Changed
+
+    - Change references of `https://brutelogic.com.br/xss.php` to `https://x55.is/brutelogic/xss.php` in the README.
+
 - v4.7
 
   - Changed

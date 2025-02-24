@@ -55,6 +55,7 @@ apiResetPath = ''
 timeAPIReset = None
 forbiddenResponseCount = 0
 latestVersion = ''
+runtimeLog = ""
 
 pauseEvent = mp.Event()
 
@@ -140,9 +141,9 @@ def handler(signal_received, frame):
     pauseEvent.clear()
     if not needToStop:
         print(colored('\n>>> "Oh my God, they killed Kenny... and knoXnl!" - Kyle','red'))
-        # If there are any input values not checked, write them to a .todo file
+        # If there are any input values not checked, write them to a .todo file, unless the -nt/-no-todo arg was passed
         try:
-            if len(inputValues) > 0:
+            if len(inputValues) > 0 and not args.no_todo:
                 try:
                     print(colored('\n>>> Just trying to save outstanding input to .todo file before ending...','yellow'))
                     with open(todoFileName, 'w') as file:
@@ -222,6 +223,15 @@ def showOptions():
         if args.skip_blocked > 0:
             print(colored('-sb: ' + str(args.skip_blocked), 'magenta'), 'The number of 403 Forbidden responses from a target (for a given HTTP method + scheme + (sub)domain) before skipping.')
         
+        if args.force_new:
+             print(colored('-fn: True', 'magenta'), 'Forces KNOXSS to do a new scan instead of getting cached results.')
+             
+        if args.runtime_log:
+             print(colored('-rl: True', 'magenta'), 'Provides a live runtime log of the KNOXSS scan.')
+
+        if args.no_todo and not urlPassed:
+             print(colored('-nt: True', 'magenta'), 'If the input file is not completed because of issues with API, connection, etc. the .todo file will not be created.')
+             
         if timeAPIReset is not None:
             print(colored('KNOXSS API Limit Reset Time:', 'magenta'), str(timeAPIReset.strftime("%Y-%m-%d %H:%M")))  
             if args.pause_until_reset:
@@ -323,7 +333,7 @@ def getConfig():
             
 # Call the KNOXSS API
 def knoxssApi(targetUrl, headers, method, knoxssResponse):
-    global latestApiCalls, rateLimitExceeded, needToStop, dontDisplay, HTTP_ADAPTER, inputValues, needToRetry, requestCount
+    global latestApiCalls, rateLimitExceeded, needToStop, dontDisplay, HTTP_ADAPTER, inputValues, needToRetry, requestCount, runtimeLog
     try:
         apiHeaders = {'X-API-KEY' : API_KEY, 
                      'Content-Type' : 'application/x-www-form-urlencoded',
@@ -358,6 +368,14 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
         # Add the post data if necessary
         if method == 'POST':
             data = data + '&post=' + postData
+            
+        # Add the Force New argument if requested
+        if args.force_new:
+            data = data + '&new=1'
+
+        # Add the Runtime Log argument if requested
+        if args.runtime_log:
+            data = data + '&log=1'
 
         # Add Headers if required
         if headers != '':
@@ -436,7 +454,28 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                             else:
                                 tryAgain = True
                         else:
-                            jsonResponse = json.loads(fullResponse)
+                            # If the --runtime-log option was passed, then get the log from the response and separate from the JSON response.
+                            if args.runtime_log:
+                                jsonPart = ""
+
+                                # Split the fullResponse by lines
+                                lines = fullResponse.splitlines()
+
+                                # Find the line containing "{" to separate runtime log and JSON response
+                                separator_index = next((i for i, line in enumerate(lines) if '{' in line), None)
+
+                                if separator_index is not None:
+                                    # Get all lines before the separator and combine into one string for runtimeLog
+                                    runtimeLog = "\n".join(lines[:separator_index]).strip()
+                                    
+                                    # Get the rest as the jsonResponse
+                                    jsonPart = "\n".join(lines[separator_index:]).strip()
+                                        
+                                # Get the JSON part of the response
+                                jsonResponse = json.loads(jsonPart.strip())
+                            else:
+                                runtimeLog = ""
+                                jsonResponse = json.loads(fullResponse)
                             
                             knoxssResponse.XSS = str(jsonResponse['XSS'])
                             knoxssResponse.PoC = str(jsonResponse['PoC'])
@@ -445,8 +484,8 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                                 knoxssResponse.Calls = 'Unknown'
                             knoxssResponse.Error = str(jsonResponse['Error'])
                             
-                            # If service unavailable flag to stop
-                            if knoxssResponse.Error == 'service unavailable':
+                            # If service unavailable flag, or error says "please retry" then retry
+                            if knoxssResponse.Error == 'service unavailable' or "please retry" in knoxssResponse.Error.lower():
                                 needToRetry = True
                             # If the API rate limit is exceeded, flag to stop
                             elif knoxssResponse.Error == 'API rate limit exceeded.':
@@ -671,7 +710,7 @@ def setAPILimitReset(timestamp):
         print(colored('ERROR setAPILimitReset 1: ' + str(e), 'red'))
         
 def processOutput(target, method, knoxssResponse):
-    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry, forbiddenResponseCount, errorCount, safeCount, requestCount, skipCount
+    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry, forbiddenResponseCount, errorCount, safeCount, requestCount, skipCount, runtimeLog
     try:
         if knoxssResponse.Error != 'FAIL':
                 
@@ -750,7 +789,12 @@ def processOutput(target, method, knoxssResponse):
                             print(colored(xssText, 'yellow'), colored('['+latestApiCalls+']','white'))
                         if args.output_all and fileIsOpen:
                             outFile.write(xssText + '\n') 
-                    
+            
+            # If --runtime-log option selected, show the log. If verbose is selected, then don't display them
+            # because it will already be displayed as part of the response
+            if args.runtime_log and not args.verbose:
+                print(runtimeLog)
+                   
     except Exception as e:
         print(colored('ERROR showOutput 1: ' + str(e), 'red'))
 
@@ -1011,6 +1055,24 @@ def main():
         type=int,
     )
     parser.add_argument(
+        '-fn',
+        '--force-new',
+        action='store_true',
+        help='Forces KNOXSS to run a new scan instead of getting cached results.',
+    )
+    parser.add_argument(
+        '-rl',
+        '--runtime-log',
+        action='store_true',
+        help='Provides a live runtime log of the KNOXSS scan.',
+    )
+    parser.add_argument(
+        '-nt',
+        '--no-todo',
+        action='store_true',
+        help='Do not create the .todo file if the input file is not completed because of issues with API, connection, etc.',
+    )
+    parser.add_argument(
         '-up',
         '--update',
         action='store_true',
@@ -1089,8 +1151,8 @@ def main():
         else:
             print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
            
-        # If a file was passed, there is a reason to stop, write the .todo file and let the user know about it
-        if needToStop and not urlPassed and not args.burp_piper:
+        # If a file was passed, there is a reason to stop, write the .todo file and let the user know about it (unless -nt/--no-todo was passed)
+        if needToStop and not urlPassed and not args.burp_piper and not args.no_todo:
             try:
                 with open(todoFileName, 'w') as file:
                     for inp in inputValues:
