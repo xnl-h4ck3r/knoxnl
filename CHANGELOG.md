@@ -1,5 +1,12 @@
 ## Changelog
 
+- v4.9
+
+  - New
+    - Add `DISCORD_WEBHOOK_COMPLETE` to `config.yml` to specify Discord webhook URL for completion notifications (only if the input was a file). If a webhook has been given, details of a completion (whether finished completely or stopped in error) will be sent to Discord. This can obviously be the same value as `DISCORD_WEBHOOK` if required.
+    - Add `-dwc`/`--discord-webhook-complete` argument. This can be passed in the command to specify a Discord webhook Completion webhook and will override the value in the `config.yml` file.
+    - BUG FIX: Add the `-dw`/`--discord-webhook` argument to the `README`, which was missing.
+
 - v4.8
 
   - New

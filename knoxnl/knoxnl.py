@@ -77,6 +77,7 @@ DEFAULT_RETRY_BACKOFF_FACTOR = 1.5
 API_URL = ''
 API_KEY = ''
 DISCORD_WEBHOOK = ''
+DISCORD_WEBHOOK_COMPLETE = ''
 
 # Object for an KNOXSS API response
 class knoxss:
@@ -185,6 +186,7 @@ def showOptions():
             if urlPassed:
                 print(colored('-i: ' + args.input, 'magenta'), 'The URL to check with KNOXSS API.')
             else:
+                print(colored('Discord Webhook Complete:', 'magenta'), DISCORD_WEBHOOK_COMPLETE)  
                 print(colored('-i: ' + args.input + ' (FILE)', 'magenta'), 'All URLs will be passed to KNOXSS API.')
 
         if fileIsOpen:
@@ -254,7 +256,7 @@ def needApiKey():
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
-    global API_URL, API_KEY, DISCORD_WEBHOOK, configPath, HTTP_ADAPTER, apiResetPath
+    global API_URL, API_KEY, DISCORD_WEBHOOK, DISCORD_WEBHOOK_COMPLETE, configPath, HTTP_ADAPTER, apiResetPath
     try:
         
         # Put config in global location based on the OS.
@@ -317,6 +319,15 @@ def getConfig():
             except Exception as e:
                 DISCORD_WEBHOOK = ''
         
+        # Set the Discord webhook Complete. If passed with argument -dwc / --discord-webhook-complete then this will override the config value
+        if args.discord_webhook_complete != '':
+            DISCORD_WEBHOOK_COMPLETE = args.discord_webhook_complete
+        else:
+            try:
+                DISCORD_WEBHOOK_COMPLETE = config.get('DISCORD_WEBHOOK_COMPLETE').replace('YOUR_WEBHOOK','')
+            except Exception as e:
+                DISCORD_WEBHOOK_COMPLETE = ''
+        
     except Exception as e:
         try:
             if args.api_key == '':
@@ -328,6 +339,7 @@ def getConfig():
                 API_KEY = args.api_key
                 print(colored('Unable to read config.yml; using default API URL and passed API Key', 'cyan'))
             DISCORD_WEBHOOK = args.discord_webhook    
+            DISCORD_WEBHOOK_COMPLETE = args.discord_webhook_complete    
         except Exception as e:
             print(colored('ERROR getConfig 1: ' + str(e), 'red'))
             
@@ -670,6 +682,31 @@ def discordNotify(target,poc):
     except Exception as e:
         print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
 
+def discordNotifyComplete(input,description,incomplete):
+    global DISCORD_WEBHOOK_COMPLETE
+    try:
+        if incomplete:
+            title = "INCOMPLETE FOR FILE `"+input+"`"
+        else:
+            title = "COMPLETE FOR FILE `"+input+"`"
+        embed = {
+            "description": description,
+            "title": title
+        }
+        data = {
+            "content": "knoxnl finished!",
+            "username": "knoxnl",
+            "embeds": [embed],
+        }
+        try:
+            result = requests.post(DISCORD_WEBHOOK_COMPLETE, json=data)
+            if 300 <= result.status_code < 200:
+                print(colored('WARNING: Failed to send notification to Discord - ' + result.json(), 'yellow'))
+        except Exception as e:
+            print(colored('WARNING: Failed to send notification to Discord - ' + str(e), 'yellow'))
+    except Exception as e:
+        print(colored('ERROR discordNotifyComplete 1: ' + str(e), 'red'))
+        
 def getAPILimitReset():
     global apiResetPath, timeAPIReset
     try:
@@ -920,7 +957,7 @@ def updateProgram():
                                        
 # Run knoXnl
 def main():
-    global args, latestApiCalls, urlPassed, successCount, fileIsOpen, outFile, needToStop, todoFileName, blockedDomains, latestVersion, safeCount, errorCount, requestCount, skipCount
+    global args, latestApiCalls, urlPassed, successCount, fileIsOpen, outFile, needToStop, todoFileName, blockedDomains, latestVersion, safeCount, errorCount, requestCount, skipCount, DISCORD_WEBHOOK_COMPLETE
     
     # Tell Python to run the handler() function when SIGINT is received
     signal(SIGINT, handler)
@@ -1016,6 +1053,13 @@ def main():
         '-dw',
         '--discord-webhook',
         help='The Discord Webhook to send successful XSS notifications to. This will be used instead of the value in config.yml',
+        action='store',
+        default='',
+    )
+    parser.add_argument(
+        '-dwc',
+        '--discord-webhook-complete',
+        help='The Discord Webhook to send completion notifications to when a file has been used as input  (whether finished completely or stopped in error). This will be used instead of the value in config.yml.',
         action='store',
         default='',
     )
@@ -1143,13 +1187,19 @@ def main():
 
         processInput()
         
+        completeDescription = ""
+        
         # Show the user the latest API quota       
         if latestApiCalls is None or latestApiCalls == '':
             latestApiCalls = 'Unknown'
         if timeAPIReset is not None:
-            print(colored('\nAPI calls made so far today - ' + latestApiCalls + ' (API Limit Reset Time: ' +str(timeAPIReset.strftime("%Y-%m-%d %H:%M")) + ')\n', 'cyan'))
+            message = '\nAPI calls made so far today - ' + latestApiCalls + ' (API Limit Reset Time: ' +str(timeAPIReset.strftime("%Y-%m-%d %H:%M")) + ')\n'
+            print(colored(message, 'cyan'))
+            completeDescription = message
         else:
-            print(colored('\nAPI calls made so far today - ' + latestApiCalls + '\n', 'cyan'))
+            message = '\nAPI calls made so far today - ' + latestApiCalls + '\n'
+            print(colored(message, 'cyan'))
+            completeDescription = message
            
         # If a file was passed, there is a reason to stop, write the .todo file and let the user know about it (unless -nt/--no-todo was passed)
         if needToStop and not urlPassed and not args.burp_piper and not args.no_todo:
@@ -1158,31 +1208,43 @@ def main():
                     for inp in inputValues:
                         file.write(inp+'\n')
                 print(colored('Had to stop due to errors. All unchecked URLs have been written to','cyan'),colored(todoFileName+'\n', 'white'))
+                completeDescription = completeDescription + 'Had to stop due to errors. All unchecked URLs have been written to `'+todoFileName+'`\n'
             except Exception as e:
-                print(colored('Was unable to write .todo file: '+str(e),'red'))
+                message = 'Was unable to write .todo file: '+str(e)+'\n'
+                print(colored(message,'red'))
+                completeDescription = completeDescription + message
         
         if args.skip_blocked > 0:
             showBlocked()
         
         # Report number of None, Error and Skipped results
         if args.skip_blocked > 0:
-            print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)}, SKIP: {str(skipCount)})','cyan'))
+            message = f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)}, SKIP: {str(skipCount)})'
+            print(colored(message,'cyan'))
         else:
-             print(colored(f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)})','cyan'))
+            message = f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)})'
+            print(colored(message,'cyan'))
+        completeDescription = completeDescription + message + '\n'
              
         # Report if any successful XSS was found this time. 
         # If the console can't display 🤘 then an error will be raised to try without
         try:
+            message = ""
             if successCount > 0:
-                print(colored('🤘 '+str(successCount)+' successful XSS found! 🤘\n','green'))
+                message = '🤘 '+str(successCount)+' successful XSS found! 🤘\n'
+                print(colored(message,'green'))
             else:
-                print(colored('No successful XSS found... better luck next time! 🤘\n','cyan'))
+                message = 'No successful XSS found... better luck next time! 🤘\n'
+                print(colored(message,'cyan'))
         except:
             if successCount > 0:
-                print(colored(str(successCount)+' successful XSS found!\n','green'))
+                message = str(successCount)+' successful XSS found!\n'
+                print(colored(message,'green'))
             else:
-                print(colored('No successful XSS found... better luck next time!\n','cyan'))
-                
+                message = 'No successful XSS found... better luck next time!\n'
+                print(colored(message,'cyan'))
+        completeDescription = completeDescription + message
+        
         # If the output was sent to a file, close the file
         if fileIsOpen:
             try:
@@ -1190,6 +1252,10 @@ def main():
             except Exception as e:
                 print(colored("ERROR: Unable to close output file: " + str(e), "red"))
         
+        # If a file was passed as input and the Discord webhook for Completion was given, then send an appropriate notification
+        if not urlPassed and not args.burp_piper and DISCORD_WEBHOOK_COMPLETE != '':
+            discordNotifyComplete(args.input,completeDescription,needToStop)
+                        
     except Exception as e:
         print(colored('ERROR main 1: ' + str(e), 'red'))
         
