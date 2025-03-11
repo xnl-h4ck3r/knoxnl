@@ -1,5 +1,15 @@
 ## Changelog
 
+- 4.10
+
+  - New
+
+    - Allow the `-r`/`--retries` to be set to zero which will mean it will not try to sleep or retry any links if there are problems with the API.
+
+  - Changed
+
+    - BUG FIX: hen the program sleeps for 10 seconds, the KNOXSS error wasn't shown for other thread completing before pausing.
+
 - v4.9
 
   - New

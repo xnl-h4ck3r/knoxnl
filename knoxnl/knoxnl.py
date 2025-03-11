@@ -217,7 +217,10 @@ def showOptions():
             
         print(colored('-t: ' + str(args.timeout), 'magenta'), 'The number of seconds to wait for KNOXSS API to respond.')
   
-        print(colored('-r: ' + str(args.retries), 'magenta'), 'The number of times to retry when having issues connecting to the KNOXSS API.')
+        if args.retries == 0:
+            print(colored('-r: ' + str(args.retries), 'magenta'), 'If having issues connecting to the KNOXSS API, the program will not sleep and not try to retry any URLs. ')
+        else:
+            print(colored('-r: ' + str(args.retries), 'magenta'), 'The number of times to retry when having issues connecting to the KNOXSS API. ')
         if args.retries > 0:
             print(colored('-ri: ' + str(args.retry_interval), 'magenta'), 'How many seconds to wait before retrying when having issues connecting to the KNOXSS API.')
             print(colored('-rb: ' + str(args.retry_backoff), 'magenta'), 'The backoff factor used when retrying when having issues connecting to the KNOXSS API.')
@@ -428,7 +431,8 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         )
                     fullResponse = resp.text.strip()
                 except Exception as e:
-                    needToRetry = True
+                    if args.retries > 0:
+                        needToRetry = True
                     if 'failure in name resolution' in str(e).lower():
                         knoxssResponse.Error = 'It appears the internet connection was lost. Please try again later.'
                     elif 'response ended prematurely' in str(e).lower():
@@ -442,109 +446,108 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     else:
                         knoxssResponse.Error = 'Unhandled error: ' + str(e)
                 
-                if not needToStop and not needToRetry:
-                    
-                    # Display the data sent to API and the response
-                    if verbose():
-                        print('KNOXSS API request:')
-                        print('     Data: ' + data)
-                        print('KNOXSS API response:')
-                        print(fullResponse)
-                    
-                    try:    
-                        knoxssResponse.Code = str(resp.status_code)
-                    except:
-                        knoxssResponse.Code = 'Unknown'
-                    
-                    # Try to get the JSON response
-                    try:
-                            
-                        # If the error has "expiration time reset", and we haven't already tried before, set to True to try one more time
-                        if 'expiration time reset' in fullResponse.lower():
-                            if tryAgain:
-                                tryAgain = False
-                            else:
-                                tryAgain = True
+                # Display the data sent to API and the response
+                if verbose():
+                    print('KNOXSS API request:')
+                    print('     Data: ' + data)
+                    print('KNOXSS API response:')
+                    print(fullResponse)
+                
+                try:    
+                    knoxssResponse.Code = str(resp.status_code)
+                except:
+                    knoxssResponse.Code = 'Unknown'
+                
+                # Try to get the JSON response
+                try:
+                        
+                    # If the error has "expiration time reset", and we haven't already tried before, set to True to try one more time
+                    if 'expiration time reset' in fullResponse.lower():
+                        if tryAgain:
+                            tryAgain = False
                         else:
-                            # If the --runtime-log option was passed, then get the log from the response and separate from the JSON response.
-                            if args.runtime_log:
-                                jsonPart = ""
+                            tryAgain = True
+                    else:
+                        # If the --runtime-log option was passed, then get the log from the response and separate from the JSON response.
+                        if args.runtime_log:
+                            jsonPart = ""
 
-                                # Split the fullResponse by lines
-                                lines = fullResponse.splitlines()
+                            # Split the fullResponse by lines
+                            lines = fullResponse.splitlines()
 
-                                # Find the line containing "{" to separate runtime log and JSON response
-                                separator_index = next((i for i, line in enumerate(lines) if '{' in line), None)
+                            # Find the line containing "{" to separate runtime log and JSON response
+                            separator_index = next((i for i, line in enumerate(lines) if '{' in line), None)
 
-                                if separator_index is not None:
-                                    # Get all lines before the separator and combine into one string for runtimeLog
-                                    runtimeLog = "\n".join(lines[:separator_index]).strip()
+                            if separator_index is not None:
+                                # Get all lines before the separator and combine into one string for runtimeLog
+                                runtimeLog = "\n".join(lines[:separator_index]).strip()
+                                
+                                # Get the rest as the jsonResponse
+                                jsonPart = "\n".join(lines[separator_index:]).strip()
                                     
-                                    # Get the rest as the jsonResponse
-                                    jsonPart = "\n".join(lines[separator_index:]).strip()
-                                        
-                                # Get the JSON part of the response
-                                jsonResponse = json.loads(jsonPart.strip())
-                            else:
-                                runtimeLog = ""
-                                jsonResponse = json.loads(fullResponse)
-                            
-                            knoxssResponse.XSS = str(jsonResponse['XSS'])
-                            knoxssResponse.PoC = str(jsonResponse['PoC'])
-                            knoxssResponse.Calls = str(jsonResponse['API Call'])
-                            if knoxssResponse.Calls == '0':
-                                knoxssResponse.Calls = 'Unknown'
-                            knoxssResponse.Error = str(jsonResponse['Error'])
-                            
-                            # If service unavailable flag, or error says "please retry" then retry
-                            if knoxssResponse.Error == 'service unavailable' or "please retry" in knoxssResponse.Error.lower():
-                                needToRetry = True
-                            # If the API rate limit is exceeded, flag to stop
-                            elif knoxssResponse.Error == 'API rate limit exceeded.':
-                                rateLimitExceeded = True
-                                knoxssResponse.Calls = 'API rate limit exceeded!'
-                                # Flag to stop if we aren't going to wait until the API limit is reset
-                                if not (timeAPIReset is not None and args.pause_until_reset):
-                                    needToStop = True
-                            else: # remove the URL from the int input set
-                                inputValues.discard(targetUrl)
-                                
-                            knoxssResponse.POSTData = str(jsonResponse['POST Data'])
-                            knoxssResponse.Timestamp = str(jsonResponse['Timestamp'])
-                        
-                    except Exception as e:
-                        knoxssResponse.Calls = 'Unknown'
-                        if fullResponse is None:
-                            fullResponse = ''
-
-                        # The response probably wasn't JSON, so check the response message
-                        if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
-                            print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key. You might need to login on https://knoxss.pro and go to your Profile and click "Save All Changes".', 'red'))
-                            needToStop = True
-                            dontDisplay = True
-                            
-                        elif fullResponse.lower() == 'no api key provided.':
-                            print(colored('No API Key was provided! Check config.yml', 'red'))
-                            needToStop = True
-                            dontDisplay = True
-
-                        elif 'hosting server read timeout' in fullResponse.lower():
-                            knoxssResponse.Error = 'Hosting Server Read Timeout'
-                        
-                        elif 'type of target page can\'t lead to xss' in fullResponse.lower(): 
-                            knoxssResponse.Error = 'XSS is not possible with the requested URL'
-                            inputValues.discard(targetUrl)
-                        
-                        elif fullResponse == '':
-                            knoxssResponse.Error = 'Empty response from API'
-                            
+                            # Get the JSON part of the response
+                            jsonResponse = json.loads(jsonPart.strip())
                         else:
-                            print(colored('Something went wrong: '+str(e),'red'))
-                            # remove the URL from the int input set
+                            runtimeLog = ""
+                            jsonResponse = json.loads(fullResponse)
+                        
+                        knoxssResponse.XSS = str(jsonResponse['XSS'])
+                        knoxssResponse.PoC = str(jsonResponse['PoC'])
+                        knoxssResponse.Calls = str(jsonResponse['API Call'])
+                        if knoxssResponse.Calls == '0':
+                            knoxssResponse.Calls = 'Unknown'
+                        knoxssResponse.Error = str(jsonResponse['Error'])
+                        
+                        # If service unavailable flag, or error says "please retry" then retry
+                        if 'service unavailable' in knoxssResponse.Error.lower()  or "please retry" in knoxssResponse.Error.lower():
+                            if args.retries > 0:
+                                needToRetry = True
+                        # If the API rate limit is exceeded, flag to stop
+                        elif knoxssResponse.Error == 'API rate limit exceeded.':
+                            rateLimitExceeded = True
+                            knoxssResponse.Calls = 'API rate limit exceeded!'
+                            # Flag to stop if we aren't going to wait until the API limit is reset
+                            if not (timeAPIReset is not None and args.pause_until_reset):
+                                needToStop = True
+                        else: # remove the URL from the int input set
                             inputValues.discard(targetUrl)
-                                
-                    if knoxssResponse.Calls != 'Unknown' and knoxssResponse.Calls != '':
-                        latestApiCalls = knoxssResponse.Calls
+                            
+                        knoxssResponse.POSTData = str(jsonResponse['POST Data'])
+                        knoxssResponse.Timestamp = str(jsonResponse['Timestamp'])
+                    
+                except Exception as e:
+                    knoxssResponse.Calls = 'Unknown'
+                    if fullResponse is None:
+                        fullResponse = ''
+
+                    # The response probably wasn't JSON, so check the response message
+                    if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
+                        print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key. You might need to login on https://knoxss.pro and go to your Profile and click "Save All Changes".', 'red'))
+                        needToStop = True
+                        dontDisplay = True
+                        
+                    elif fullResponse.lower() == 'no api key provided.':
+                        print(colored('No API Key was provided! Check config.yml', 'red'))
+                        needToStop = True
+                        dontDisplay = True
+
+                    elif 'hosting server read timeout' in fullResponse.lower():
+                        knoxssResponse.Error = 'Hosting Server Read Timeout'
+                    
+                    elif 'type of target page can\'t lead to xss' in fullResponse.lower(): 
+                        knoxssResponse.Error = 'XSS is not possible with the requested URL'
+                        inputValues.discard(targetUrl)
+                    
+                    elif fullResponse == '':
+                        knoxssResponse.Error = 'Empty response from API'
+                        
+                    else:
+                        print(colored('Something went wrong: '+str(e),'red'))
+                        # remove the URL from the int input set
+                        inputValues.discard(targetUrl)
+                            
+                if knoxssResponse.Calls != 'Unknown' and knoxssResponse.Calls != '':
+                    latestApiCalls = knoxssResponse.Calls
                         
         except Exception as e:
             knoxssResponse.Error = 'FAIL'
@@ -761,7 +764,8 @@ def processOutput(target, method, knoxssResponse):
                     # If there is "InvalidChunkLength" in the error returned, it means the KNOXSS API returned an empty response
                     elif 'InvalidChunkLength' in knoxssResponseError:
                         knoxssResponseError = 'The API Timed Out'
-                        needToRetry = True
+                        if args.retries > 0:
+                            needToRetry = True
                     # If the error has "can\'t test it (forbidden)" it means the a 403 was returned by the target
                     elif 'can\'t test it (forbidden)' in knoxssResponseError:
                         knoxssResponseError = 'Target returned a "403 Forbidden". There could be WAF in place.'
@@ -866,7 +870,7 @@ def processUrl(target):
                     pauseEvent.set()
                     needToRetry = False
                     if retryAttempt == 0:
-                        delay = args.retry_interval
+                        delay = args.retry_interval * 1.0
                     else:
                         delay = args.retry_interval * (retryAttempt * args.retry_backoff)
                     if retryAttempt == args.retries:
@@ -1066,7 +1070,7 @@ def main():
     parser.add_argument(
         '-r',
         '--retries',
-        help='The number of times to retry when having issues connecting to the KNOXSS API (default: '+str(DEFAULT_RETRIES)+')',
+        help='The number of times to retry when having issues connecting to the KNOXSS API (default: '+str(DEFAULT_RETRIES)+'). If set to 0 then then it will not sleep or try to retry any URLs.',
         default=DEFAULT_RETRIES,
         type=int,
     )

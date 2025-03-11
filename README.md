@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v4.9
+## About - v4.10
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.pro/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.pro and subscribe!
@@ -64,7 +64,7 @@ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 | -bp  | --burp-piper               | Use if **knoxnl** is called from the Burp Piper extension, so that a request in **Burp Suite** proxy can be tested. See the [Using in Burp Suite Proxy](#using-in-burp-suite-proxy) section below.                                                                           |
 | -dw  | --discord-webhook          | The Discord Webhook to send successful XSS notifications to. This will be used instead of the value in `config.yml`.                                                                                                                                                         |
 | -dwc | --discord-webhook-complete | The Discord Webhook to send completion notifications to when a file has been used as input (whether finished completely or stopped in error). This will be used instead of the value in `config.yml`.                                                                        |
-| -r   | --retries                  | The number of times to retry when having issues connecting to the KNOXSS API (default: 3)                                                                                                                                                                                    |
+| -r   | --retries                  | The number of times to retry when having issues connecting to the KNOXSS API (default: 3). If set to 0 then then it will not sleep or try to retry any URLs.                                                                                                                 |
 | -ri  | --retry-interval           | How many seconds to wait before retrying when having issues connecting to the KNOXSS API (default: 30)                                                                                                                                                                       |
 | -rb  | --retry-backoff            | The backoff factor used when retrying when having issues connecting to the KNOXSS API (default: 1.5). For example, with defaults, first time will wait for 30 seconds, 2nd time will be 45 (30 x 1.5) seconds, etc.                                                          |
 | -pur | --pause-until-reset        | If the API Limit reset time is known and the API limit is reached, wait the required time until the limit is reset and continue again. The reset time is only known if knoxnl has run for request number 1 previously. The API rate limit is reset 24 hours after request 1. |
