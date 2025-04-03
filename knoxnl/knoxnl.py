@@ -669,12 +669,21 @@ def discordNotify(target,poc):
     try:
         embed = {
             "description": "```\n"+poc+"\n```",
-            "title": "KNOXSS POC for "+target
+            "title": "KNOXSS POC for "+target,
+            "color": 42320,  # Green
+            "fields": [
+                {
+                    "name": "",
+                    "value": "[☕ Buy me a coffee](https://ko-fi.com/xnlh4ck3r)", 
+                    "inline": False
+                }
+            ]
         }
         data = {
             "content": "XSS found by knoxnl! 🤘",
             "username": "knoxnl",
             "embeds": [embed],
+            "avatar_url": "https://avatars.githubusercontent.com/u/84544946"
         }
         try:
             result = requests.post(DISCORD_WEBHOOK, json=data)
@@ -685,28 +694,43 @@ def discordNotify(target,poc):
     except Exception as e:
         print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
 
-def discordNotifyComplete(input,description,incomplete):
+def discordNotifyComplete(input, description, incomplete):
     global DISCORD_WEBHOOK_COMPLETE
     try:
         if incomplete:
             title = "INCOMPLETE FOR FILE `"+input+"`"
+            embed_color = 16711722  # Red
         else:
             title = "COMPLETE FOR FILE `"+input+"`"
+            embed_color = 42320  # Green
+
         embed = {
             "description": description,
-            "title": title
+            "title": title,
+            "color": embed_color,
+            "fields": [
+                {
+                    "name": "",
+                    "value": "[☕ Buy me a coffee](https://ko-fi.com/xnlh4ck3r)", 
+                    "inline": False
+                }
+            ]
         }
+
         data = {
             "content": "knoxnl finished!",
             "username": "knoxnl",
+            "avatar_url": "https://avatars.githubusercontent.com/u/84544946",
             "embeds": [embed],
         }
+
         try:
             result = requests.post(DISCORD_WEBHOOK_COMPLETE, json=data)
             if 300 <= result.status_code < 200:
                 print(colored('WARNING: Failed to send notification to Discord - ' + result.json(), 'yellow'))
         except Exception as e:
             print(colored('WARNING: Failed to send notification to Discord - ' + str(e), 'yellow'))
+
     except Exception as e:
         print(colored('ERROR discordNotifyComplete 1: ' + str(e), 'red'))
         

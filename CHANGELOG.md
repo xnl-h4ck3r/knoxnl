@@ -1,5 +1,12 @@
 ## Changelog
 
+- 4.11
+
+  - Changed
+
+    - BUG FIX: When processing a file and it's complete, a discord message was only sent when finished but incomplete. It should also be sent when finished and the whole file was completed.
+    - Make discord notifications prettier.
+
 - 4.10
 
   - New
@@ -8,7 +15,7 @@
 
   - Changed
 
-    - BUG FIX: hen the program sleeps for 10 seconds, the KNOXSS error wasn't shown for other thread completing before pausing.
+    - BUG FIX: When the program sleeps for 10 seconds, the KNOXSS error wasn't shown for other thread completing before pausing.
 
 - v4.9
 
