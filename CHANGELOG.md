@@ -1,5 +1,12 @@
 ## Changelog
 
+- 4.12
+
+  - New
+
+    - After the KNOXSS API upgrade to 4.1.1, the response now has a `Redir` value. If `true` then it means that the PoC is also for an Open Redirect. If an XSS is found, that will just be reported, but if `XSS` is `false` then an Open Redirect will be reported instead.
+    - If for any reason the API response has a value for `PoC` AND `Error`, then ignore the error and just report the successful `PoC`.
+
 - 4.11
 
   - Changed

@@ -37,7 +37,8 @@ rateLimitExceeded = False
 needToStop = False
 needToRetry = False
 dontDisplay = False
-successCount = 0
+successCountXSS = 0
+successCountOR = 0
 safeCount = 0
 errorCount = 0
 requestCount = 0
@@ -83,6 +84,7 @@ DISCORD_WEBHOOK_COMPLETE = ''
 class knoxss:
     Code = ''
     XSS = ''
+    Redir = ''
     PoC = ''
     Calls = ''
     Error = ''
@@ -110,6 +112,19 @@ def showBanner():
     print(r"|_|\_\_| |_|\___"+colored("/_/  ","red")+colored(r"\_\ "[:-1],"yellow")+colored("_| |_|","green")+colored("_| ","cyan"))
     print(colored("                 by @Xnl-h4ck3r ","magenta"))
     print()
+    try:
+        currentDate = datetime.now().date()
+        if currentDate.month == 12 and currentDate.day in (24,25):
+            print(colored(" *** 🎅 HAPPY CHRISTMAS! 🎅 ***","green",attrs=["blink"]))
+        elif currentDate.month == 10 and currentDate.day == 31:
+            print(colored(" *** 🎃 HAPPY HALLOWEEN! 🎃 ***","red",attrs=["blink"]))
+        elif currentDate.month == 1 and currentDate.day in  (1,2,3,4,5):
+            print(colored(" *** 🥳 HAPPY NEW YEAR!! 🥳 ***","yellow",attrs=["blink"]))
+        elif currentDate.month == 10 and currentDate.day == 10:
+            print(colored(" *** 🧠 HAPPY WORLD MENTAL HEALTH DAY!! 💚 ***","yellow",attrs=["blink"]))
+        print()
+    except:
+        pass
     print(colored('DISCLAIMER: We are not responsible for any use, and especially misuse, of this tool or the KNOXSS API','yellow'))
     print()
     showVersion()
@@ -492,25 +507,29 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                             jsonResponse = json.loads(fullResponse)
                         
                         knoxssResponse.XSS = str(jsonResponse['XSS'])
+                        knoxssResponse.Redir = str(jsonResponse['Redir'])
                         knoxssResponse.PoC = str(jsonResponse['PoC'])
                         knoxssResponse.Calls = str(jsonResponse['API Call'])
                         if knoxssResponse.Calls == '0':
                             knoxssResponse.Calls = 'Unknown'
                         knoxssResponse.Error = str(jsonResponse['Error'])
                         
-                        # If service unavailable flag, or error says "please retry" then retry
-                        if 'service unavailable' in knoxssResponse.Error.lower()  or "please retry" in knoxssResponse.Error.lower():
-                            if args.retries > 0:
-                                needToRetry = True
-                        # If the API rate limit is exceeded, flag to stop
-                        elif knoxssResponse.Error == 'API rate limit exceeded.':
-                            rateLimitExceeded = True
-                            knoxssResponse.Calls = 'API rate limit exceeded!'
-                            # Flag to stop if we aren't going to wait until the API limit is reset
-                            if not (timeAPIReset is not None and args.pause_until_reset):
-                                needToStop = True
-                        else: # remove the URL from the int input set
-                            inputValues.discard(targetUrl)
+                        # Only check for errors if the PoC is not given
+                        if knoxssResponse.PoC != 'none' and ():
+                            
+                            # If service unavailable flag, or error says "please retry" then retry
+                            if 'service unavailable' in knoxssResponse.Error.lower()  or "please retry" in knoxssResponse.Error.lower():
+                                if args.retries > 0:
+                                    needToRetry = True
+                            # If the API rate limit is exceeded, flag to stop
+                            elif knoxssResponse.Error == 'API rate limit exceeded.':
+                                rateLimitExceeded = True
+                                knoxssResponse.Calls = 'API rate limit exceeded!'
+                                # Flag to stop if we aren't going to wait until the API limit is reset
+                                if not (timeAPIReset is not None and args.pause_until_reset):
+                                    needToStop = True
+                            else: # remove the URL from the int input set
+                                inputValues.discard(targetUrl)
                             
                         knoxssResponse.POSTData = str(jsonResponse['POST Data'])
                         knoxssResponse.Timestamp = str(jsonResponse['Timestamp'])
@@ -664,7 +683,7 @@ def processInput():
     except Exception as e:
         print(colored('ERROR processInput 1: ' + str(e), 'red'))
 
-def discordNotify(target,poc):
+def discordNotify(target,poc,vulnType):
     global DISCORD_WEBHOOK
     try:
         embed = {
@@ -674,13 +693,13 @@ def discordNotify(target,poc):
             "fields": [
                 {
                     "name": "",
-                    "value": "[☕ Buy me a coffee](https://ko-fi.com/xnlh4ck3r)", 
+                    "value": "[☕ Buy me a coffee, Thanks!](https://ko-fi.com/xnlh4ck3r)", 
                     "inline": False
                 }
             ]
         }
         data = {
-            "content": "XSS found by knoxnl! 🤘",
+            "content": vulnType + " found by knoxnl! 🤘",
             "username": "knoxnl",
             "embeds": [embed],
             "avatar_url": "https://avatars.githubusercontent.com/u/84544946"
@@ -711,7 +730,7 @@ def discordNotifyComplete(input, description, incomplete):
             "fields": [
                 {
                     "name": "",
-                    "value": "[☕ Buy me a coffee](https://ko-fi.com/xnlh4ck3r)", 
+                    "value": "[☕ Buy me a coffee, Thanks!](https://ko-fi.com/xnlh4ck3r)", 
                     "inline": False
                 }
             ]
@@ -774,11 +793,11 @@ def setAPILimitReset(timestamp):
         print(colored('ERROR setAPILimitReset 1: ' + str(e), 'red'))
         
 def processOutput(target, method, knoxssResponse):
-    global latestApiCalls, successCount, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry, forbiddenResponseCount, errorCount, safeCount, requestCount, skipCount, runtimeLog
+    global latestApiCalls, successCountXSS, successCountOR, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry, forbiddenResponseCount, errorCount, safeCount, requestCount, skipCount, runtimeLog
     try:
         if knoxssResponse.Error != 'FAIL':
                 
-            if knoxssResponse.Error != 'none':
+            if knoxssResponse.PoC != 'none' and knoxssResponse.Error != 'none':
                 if not args.success_only:
                     knoxssResponseError = knoxssResponse.Error
                     # If there is a 403, it maybe because the users IP is blocked on the KNOXSS firewall
@@ -837,13 +856,38 @@ def processOutput(target, method, knoxssResponse):
                         print(colored(xssText, 'green'))
                     else:
                         print(colored(xssText, 'green'), colored('['+latestApiCalls+']','white'))
-                    successCount = successCount + 1
-                    # Send a notification to discord if a webook was provided
+                    successCountXSS = successCountXSS + 1
+                    
+                    # If there was an Open Redirect too, then increment that count
+                    if knoxssResponse.Redir == 'true':
+                        vulnType = 'XSS (and OR)'
+                    else:
+                        vulnType = 'XSS'
+                        
+                    # Send a notification to discord if a webhook was provided
                     if DISCORD_WEBHOOK != '':
-                        discordNotify(target,knoxssResponse.PoC)
+                        discordNotify(target,knoxssResponse.PoC,vulnType)
+                        
                     # Write the successful XSS details to file
                     if fileIsOpen:
                         outFile.write(xssText + '\n')
+                        
+                elif knoxssResponse.Redir == 'true':
+                    orText = '[ OR ! ] - (' + method + ') ' + knoxssResponse.PoC
+                    if urlPassed:
+                        print(colored(orText, 'green'))
+                    else:
+                        print(colored(orText, 'green'), colored('['+latestApiCalls+']','white'))
+                    successCountOR = successCountOR + 1
+                    
+                    # Send a notification to discord if a webhook was provided
+                    if DISCORD_WEBHOOK != '':
+                        discordNotify(target,knoxssResponse.PoC, 'Open Redirect')
+                        
+                    # Write the successful OR details to file
+                    if fileIsOpen:
+                        outFile.write(orText + '\n')
+                        
                 else:
                     if not args.success_only:
                         xssText = '[ NONE ] - (' + method + ') ' + target
@@ -985,7 +1029,7 @@ def updateProgram():
                                        
 # Run knoXnl
 def main():
-    global args, latestApiCalls, urlPassed, successCount, fileIsOpen, outFile, needToStop, todoFileName, blockedDomains, latestVersion, safeCount, errorCount, requestCount, skipCount, DISCORD_WEBHOOK_COMPLETE
+    global args, latestApiCalls, urlPassed, successCountXSS, successCountOR, fileIsOpen, outFile, needToStop, todoFileName, blockedDomains, latestVersion, safeCount, errorCount, requestCount, skipCount, DISCORD_WEBHOOK_COMPLETE
     
     # Tell Python to run the handler() function when SIGINT is received
     signal(SIGINT, handler)
@@ -1247,30 +1291,36 @@ def main():
         
         # Report number of None, Error and Skipped results
         if args.skip_blocked > 0:
-            message = f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)}, SKIP: {str(skipCount)})'
+            message = f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCountXSS)}, OR!: {str(successCountOR)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)}, SKIP: {str(skipCount)})'
             print(colored(message,'cyan'))
         else:
-            message = f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCount)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)})'
+            message = f'Requests made to KNOXSS API: {str(requestCount)} (XSS!: {str(successCountXSS)}, OR!: {str(successCountOR)}, NONE: {str(safeCount)}, ERR!: {str(errorCount)})'
             print(colored(message,'cyan'))
         completeDescription = completeDescription + message + '\n'
              
-        # Report if any successful XSS was found this time. 
+        # Report if any successful XSS or Open Redirect was found this time. 
         # If the console can't display 🤘 then an error will be raised to try without
         try:
             message = ""
-            if successCount > 0:
-                message = '🤘 '+str(successCount)+' successful XSS found! 🤘\n'
+            if successCountOR == 1:
+                openRedirectTerm = 'Open Redirect'
+            else: 
+                openRedirectTerm = 'Open Redirects'
+            if successCountXSS > 0 and successCountOR > 0:
+                message = '🤘 '+str(successCountXSS)+' successful XSS found and '+str(successCountOR)+' successful '+openRedirectTerm+' found! 🤘\n'
                 print(colored(message,'green'))
             else:
-                message = 'No successful XSS found... better luck next time! 🤘\n'
-                print(colored(message,'cyan'))
+                if successCountXSS > 0:
+                    message = '🤘 '+str(successCountXSS)+' successful XSS found! 🤘\n'
+                    print(colored(message,'green'))
+                elif successCountOR > 0:
+                    message = '🤘 No successful XSS, but '+str(successCountOR)+' successful '+openRedirectTerm+' found! 🤘\n'
+                    print(colored(message,'green'))
+                else:
+                    message = 'No successful XSS or '+openRedirectTerm+' found... better luck next time! 🤘\n'
+                    print(colored(message,'cyan'))
         except:
-            if successCount > 0:
-                message = str(successCount)+' successful XSS found!\n'
-                print(colored(message,'green'))
-            else:
-                message = 'No successful XSS found... better luck next time!\n'
-                print(colored(message,'cyan'))
+            print(colored('ERROR: ' + str(e), 'red'))   
         completeDescription = completeDescription + message
         
         # If the output was sent to a file, close the file

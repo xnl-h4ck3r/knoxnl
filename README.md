@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v4.11
+## About - v4.12
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.pro/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.pro and subscribe!
@@ -58,11 +58,11 @@ pipx install git+https://github.com/xnl-h4ck3r/knoxnl.git
 | -pd  | --post-data                | If a POST request is made, this is the POST data passed. It must be in the format `'param1=value&param2=value&param3=value'`. If this isn't passed and query string parameters are used, then these will be used as POST data if POST Method is requested.                   |
 | -H   | --headers                  | Add custom headers to pass with HTTP requests. Pass in the format `'Header1:value1;\|Header2:value2'` (e.g. separate different headers with a pipe \| character).                                                                                                            |
 | -A   | --api-key                  | The KNOXSS API Key to use. This will be used instead of the value in `config.yml`                                                                                                                                                                                            |
-| -s   | --success-only             | Only show successful XSS payloads in the CLI output.                                                                                                                                                                                                                         |
+| -s   | --success-only             | Only show successful XSS and Open Redirect payloads in the CLI output.                                                                                                                                                                                                       |
 | -p   | --processes                | Basic multithreading is done when getting requests for a file of URLs. This argument determines the number of processes (one per URL to check) are run per minute (default: 3). This is due to the rate limit of the KNOXSS API.                                             |
 | -t   | --timeout                  | How many seconds to wait for the KNOXSS API to respond before giving up (default: 600). If set to 0, then timeout will be used.                                                                                                                                              |
 | -bp  | --burp-piper               | Use if **knoxnl** is called from the Burp Piper extension, so that a request in **Burp Suite** proxy can be tested. See the [Using in Burp Suite Proxy](#using-in-burp-suite-proxy) section below.                                                                           |
-| -dw  | --discord-webhook          | The Discord Webhook to send successful XSS notifications to. This will be used instead of the value in `config.yml`.                                                                                                                                                         |
+| -dw  | --discord-webhook          | The Discord Webhook to send successful XSS and Open Redirect notifications to. This will be used instead of the value in `config.yml`.                                                                                                                                       |
 | -dwc | --discord-webhook-complete | The Discord Webhook to send completion notifications to when a file has been used as input (whether finished completely or stopped in error). This will be used instead of the value in `config.yml`.                                                                        |
 | -r   | --retries                  | The number of times to retry when having issues connecting to the KNOXSS API (default: 3). If set to 0 then then it will not sleep or try to retry any URLs.                                                                                                                 |
 | -ri  | --retry-interval           | How many seconds to wait before retrying when having issues connecting to the KNOXSS API (default: 30)                                                                                                                                                                       |
@@ -83,7 +83,7 @@ The `config.yml` file (in the global location based on the OS, e.g. `~/.config/k
 
 - `API_URL` - This can be set to the KNOXSS API endpoint, if and when it is changed
 - `API_KEY` - Your KNOXSS API key that you will have generated on https://knoxss.pro/
-- `DISCORD_WEBHOOK` - Your discord webhook URL if you want to be notified of successful XSS
+- `DISCORD_WEBHOOK` - Your discord webhook URL if you want to be notified of successful XSS and Open Redirect
 - `DISCORD_WEBHOOK_COMPLETE` - Your discord webhook URL if you want to be notified of completion when a file has been used as input (whether finished completely or stopped in error).
 
 ## Important Notes from KNOXSS API Guidelines
