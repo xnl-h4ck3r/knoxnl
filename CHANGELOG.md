@@ -1,5 +1,22 @@
 ## Changelog
 
+- 4.13
+
+  - New
+
+    - If for any reason the API response says there is a `PoC` but neither the `XSS` or `Redir` values are `true` in the API response (this shouldn't happen, but has) then just assume the `XSS` should be `true` and report success.
+
+  - Change
+
+    - BUG FIX: The check for whether an error occurred but has a PoC wasn't always working, so sometimes there was a genuine error and no PoC, but being reported as `[ NONE ]`.
+    - BUG FIX: If the API times out before getting a response, the correct error message wasn't always displayed.
+    - BUG FIX: If sending a notification to Discord failed, it did not display a warning because of incorrect logic.
+    - BUG FIX: In the unlikely event that many XSS were found and therefore many Discord notifications sent in a short space of time, it was possible that Discord would respond with a 429 and fail. This has been change to retry a number of times based on the retry value Discord respond with.
+    - Use `ThreadPoolExecutor` instead of `multiprocessing.Pool` when processing more that one URL at a time. Using `ThreadPoolExecutor` is better for web requests, uses less memory and faster.
+    - Prevent the error `You need to provide an input with -i argument or through <stdin>.` being displayed when using the `-up`/`--update` option, and also confirm when on the latest version.
+    - When showing the `KNOXSS API timed out getting the response (consider changing -t value)` message if the API times out, also show the current value of `-t`.
+    - Use `sys.exit(0)` instead of `quit()` because it plays more nicely with threaded code.
+
 - 4.12
 
   - New

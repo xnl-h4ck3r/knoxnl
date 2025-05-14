@@ -8,8 +8,6 @@
 import requests
 import argparse
 from signal import SIGINT, signal
-import multiprocessing.dummy as mp
-import multiprocessing
 import time
 from termcolor import colored
 import yaml
@@ -28,6 +26,8 @@ import time
 from urllib.parse import urlparse
 from dateutil import tz
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 # Global variables
 stopProgram = False
@@ -51,6 +51,7 @@ configPath = ''
 inputValues = set()
 blockedDomains = {}
 HTTP_ADAPTER = None
+HTTP_ADAPTER_DISCORD = None
 retryAttempt = 0
 apiResetPath = ''
 timeAPIReset = None
@@ -58,9 +59,10 @@ forbiddenResponseCount = 0
 latestVersion = ''
 runtimeLog = ""
 
-pauseEvent = mp.Event()
+pauseEvent = Event()
 
 DEFAULT_API_URL = 'https://api.knoxss.pro'
+API_KEY_SECRET = "aHR0cHM6Ly95b3V0dS5iZS9kUXc0dzlXZ1hjUQ=="
 
 # The default timeout for KNOXSS API to respond in seconds
 DEFAULT_TIMEOUT = 600
@@ -180,7 +182,7 @@ def handler(signal_received, frame):
             outFile.close()
         except:
             pass
-        quit()
+        sys.exit(0)
             
 # Show the chosen options and config settings
 def showOptions():
@@ -274,7 +276,7 @@ def needApiKey():
               
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
-    global API_URL, API_KEY, DISCORD_WEBHOOK, DISCORD_WEBHOOK_COMPLETE, configPath, HTTP_ADAPTER, apiResetPath
+    global API_URL, API_KEY, DISCORD_WEBHOOK, DISCORD_WEBHOOK_COMPLETE, configPath, HTTP_ADAPTER, HTTP_ADAPTER_DISCORD, apiResetPath
     try:
         
         # Put config in global location based on the OS.
@@ -297,6 +299,20 @@ def getConfig():
             HTTP_ADAPTER = HTTPAdapter(max_retries=retry)
         except Exception as e:
             print(colored('ERROR getConfig 2: ' + str(e), 'red'))
+        
+        # Set up an HTTPAdaptor for retry strategy when sending Discord notifications
+        try:
+            retry= Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+                raise_on_status=False,
+                respect_retry_after_header=True
+            )
+            HTTP_ADAPTER_DISCORD = HTTPAdapter(max_retries=retry)
+        except Exception as e:
+            print(colored('ERROR getConfig 2: ' + str(e), 'red'))
+        
         
         configPath.absolute
         # Set config file path and apireset file path
@@ -322,11 +338,11 @@ def getConfig():
                 if API_KEY is None or API_KEY == 'YOUR_API_KEY':
                     print(colored('ERROR: You need to add your "API_KEY" to config.yml or pass it with the -A option.', 'red'))
                     needApiKey()
-                    quit()
+                    sys.exit(0)
         except Exception as e:
             print(colored('Unable to read "API_KEY" from config.yml; We need an API key! - ' + str(e), 'red'))
             needApiKey()
-            quit()
+            sys.exit(0)
         
         # Set the Discord webhook. If passed with argument -dw / --discord-webhook then this will override the config value
         if args.discord_webhook != '':
@@ -351,7 +367,7 @@ def getConfig():
             if args.api_key == '':
                 print(colored('Unable to read config.yml and API Key not passed with -A; Unable to use KNOXSS API! - ' + str(e), 'red'))
                 needApiKey()
-                quit()
+                sys.exit(0)
             else:
                 API_URL = DEFAULT_API_URL
                 API_KEY = args.api_key
@@ -446,6 +462,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         )
                     fullResponse = resp.text.strip()
                 except Exception as e:
+                    knoxssResponse.PoC = 'none'
                     if args.retries > 0:
                         needToRetry = True
                     if 'failure in name resolution' in str(e).lower():
@@ -457,116 +474,117 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     elif 'remote end closed connection' in str(e).lower() or 'connection aborted' in str(e).lower():
                         knoxssResponse.Error = 'The KNOXSS API dropped the connection.'
                     elif 'read timed out' in str(e).lower():
-                        knoxssResponse.Error = 'The KNOXSS API timed out getting the response (consider changing -t value)'
+                        knoxssResponse.Error = 'The KNOXSS API timed out getting the response (consider changing -t value - currently '+str(args.timeout)+' seconds)'
                     else:
                         knoxssResponse.Error = 'Unhandled error: ' + str(e)
                 
-                # Display the data sent to API and the response
-                if verbose():
-                    print('KNOXSS API request:')
-                    print('     Data: ' + data)
-                    print('KNOXSS API response:')
-                    print(fullResponse)
-                
-                try:    
-                    knoxssResponse.Code = str(resp.status_code)
-                except:
-                    knoxssResponse.Code = 'Unknown'
-                
-                # Try to get the JSON response
-                try:
-                        
-                    # If the error has "expiration time reset", and we haven't already tried before, set to True to try one more time
-                    if 'expiration time reset' in fullResponse.lower():
-                        if tryAgain:
-                            tryAgain = False
+                if knoxssResponse.Error == '': 
+                    # Display the data sent to API and the response
+                    if verbose():
+                        print('KNOXSS API request:')
+                        print('     Data: ' + data)
+                        print('KNOXSS API response:')
+                        print(fullResponse)
+                    
+                    try:    
+                        knoxssResponse.Code = str(resp.status_code)
+                    except:
+                        knoxssResponse.Code = 'Unknown'
+                    
+                    # Try to get the JSON response
+                    try:
+                            
+                        # If the error has "expiration time reset", and we haven't already tried before, set to True to try one more time
+                        if 'expiration time reset' in fullResponse.lower():
+                            if tryAgain:
+                                tryAgain = False
+                            else:
+                                tryAgain = True
                         else:
-                            tryAgain = True
-                    else:
-                        # If the --runtime-log option was passed, then get the log from the response and separate from the JSON response.
-                        if args.runtime_log:
-                            jsonPart = ""
+                            # If the --runtime-log option was passed, then get the log from the response and separate from the JSON response.
+                            if args.runtime_log:
+                                jsonPart = ""
 
-                            # Split the fullResponse by lines
-                            lines = fullResponse.splitlines()
+                                # Split the fullResponse by lines
+                                lines = fullResponse.splitlines()
 
-                            # Find the line containing "{" to separate runtime log and JSON response
-                            separator_index = next((i for i, line in enumerate(lines) if '{' in line), None)
+                                # Find the line containing "{" to separate runtime log and JSON response
+                                separator_index = next((i for i, line in enumerate(lines) if '{' in line), None)
 
-                            if separator_index is not None:
-                                # Get all lines before the separator and combine into one string for runtimeLog
-                                runtimeLog = "\n".join(lines[:separator_index]).strip()
-                                
-                                # Get the rest as the jsonResponse
-                                jsonPart = "\n".join(lines[separator_index:]).strip()
+                                if separator_index is not None:
+                                    # Get all lines before the separator and combine into one string for runtimeLog
+                                    runtimeLog = "\n".join(lines[:separator_index]).strip()
                                     
-                            # Get the JSON part of the response
-                            jsonResponse = json.loads(jsonPart.strip())
+                                    # Get the rest as the jsonResponse
+                                    jsonPart = "\n".join(lines[separator_index:]).strip()
+                                        
+                                # Get the JSON part of the response
+                                jsonResponse = json.loads(jsonPart.strip())
+                            else:
+                                runtimeLog = ""
+                                jsonResponse = json.loads(fullResponse)
+                            
+                            knoxssResponse.XSS = str(jsonResponse['XSS'])
+                            knoxssResponse.Redir = str(jsonResponse['Redir'])
+                            knoxssResponse.PoC = str(jsonResponse['PoC'])
+                            knoxssResponse.Calls = str(jsonResponse['API Call'])
+                            if knoxssResponse.Calls == '0':
+                                knoxssResponse.Calls = 'Unknown'
+                            knoxssResponse.Error = str(jsonResponse['Error'])
+                            
+                            # Only check for errors if the PoC is not given
+                            if knoxssResponse.PoC != 'none':
+                                
+                                # If service unavailable flag, or error says "please retry" then retry
+                                if 'service unavailable' in knoxssResponse.Error.lower()  or "please retry" in knoxssResponse.Error.lower():
+                                    if args.retries > 0:
+                                        needToRetry = True
+                                # If the API rate limit is exceeded, flag to stop
+                                elif knoxssResponse.Error == 'API rate limit exceeded.':
+                                    rateLimitExceeded = True
+                                    knoxssResponse.Calls = 'API rate limit exceeded!'
+                                    # Flag to stop if we aren't going to wait until the API limit is reset
+                                    if not (timeAPIReset is not None and args.pause_until_reset):
+                                        needToStop = True
+                                else: # remove the URL from the int input set
+                                    inputValues.discard(targetUrl)
+                                
+                            knoxssResponse.POSTData = str(jsonResponse['POST Data'])
+                            knoxssResponse.Timestamp = str(jsonResponse['Timestamp'])
+                        
+                    except Exception as e:
+                        knoxssResponse.Calls = 'Unknown'
+                        if fullResponse is None:
+                            fullResponse = ''
+
+                        # The response probably wasn't JSON, so check the response message
+                        if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
+                            print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key. You might need to login on https://knoxss.pro and go to your Profile and click "Save All Changes".', 'red'))
+                            needToStop = True
+                            dontDisplay = True
+                            
+                        elif fullResponse.lower() == 'no api key provided.':
+                            print(colored('No API Key was provided! Check config.yml', 'red'))
+                            needToStop = True
+                            dontDisplay = True
+
+                        elif 'hosting server read timeout' in fullResponse.lower():
+                            knoxssResponse.Error = 'Hosting Server Read Timeout'
+                        
+                        elif 'type of target page can\'t lead to xss' in fullResponse.lower(): 
+                            knoxssResponse.Error = 'XSS is not possible with the requested URL'
+                            inputValues.discard(targetUrl)
+                        
+                        elif fullResponse == '':
+                            knoxssResponse.Error = 'Empty response from API'
+                            
                         else:
-                            runtimeLog = ""
-                            jsonResponse = json.loads(fullResponse)
-                        
-                        knoxssResponse.XSS = str(jsonResponse['XSS'])
-                        knoxssResponse.Redir = str(jsonResponse['Redir'])
-                        knoxssResponse.PoC = str(jsonResponse['PoC'])
-                        knoxssResponse.Calls = str(jsonResponse['API Call'])
-                        if knoxssResponse.Calls == '0':
-                            knoxssResponse.Calls = 'Unknown'
-                        knoxssResponse.Error = str(jsonResponse['Error'])
-                        
-                        # Only check for errors if the PoC is not given
-                        if knoxssResponse.PoC != 'none' and ():
+                            print(colored('Something went wrong: '+str(e),'red'))
+                            # remove the URL from the int input set
+                            inputValues.discard(targetUrl)
                             
-                            # If service unavailable flag, or error says "please retry" then retry
-                            if 'service unavailable' in knoxssResponse.Error.lower()  or "please retry" in knoxssResponse.Error.lower():
-                                if args.retries > 0:
-                                    needToRetry = True
-                            # If the API rate limit is exceeded, flag to stop
-                            elif knoxssResponse.Error == 'API rate limit exceeded.':
-                                rateLimitExceeded = True
-                                knoxssResponse.Calls = 'API rate limit exceeded!'
-                                # Flag to stop if we aren't going to wait until the API limit is reset
-                                if not (timeAPIReset is not None and args.pause_until_reset):
-                                    needToStop = True
-                            else: # remove the URL from the int input set
-                                inputValues.discard(targetUrl)
-                            
-                        knoxssResponse.POSTData = str(jsonResponse['POST Data'])
-                        knoxssResponse.Timestamp = str(jsonResponse['Timestamp'])
-                    
-                except Exception as e:
-                    knoxssResponse.Calls = 'Unknown'
-                    if fullResponse is None:
-                        fullResponse = ''
-
-                    # The response probably wasn't JSON, so check the response message
-                    if fullResponse.lower() == 'incorrect apy key.' or fullResponse.lower() == 'invalid or expired api key.':
-                        print(colored('The provided API Key is invalid! Check if your subscription is still active, or if you forgot to save your current API key. You might need to login on https://knoxss.pro and go to your Profile and click "Save All Changes".', 'red'))
-                        needToStop = True
-                        dontDisplay = True
-                        
-                    elif fullResponse.lower() == 'no api key provided.':
-                        print(colored('No API Key was provided! Check config.yml', 'red'))
-                        needToStop = True
-                        dontDisplay = True
-
-                    elif 'hosting server read timeout' in fullResponse.lower():
-                        knoxssResponse.Error = 'Hosting Server Read Timeout'
-                    
-                    elif 'type of target page can\'t lead to xss' in fullResponse.lower(): 
-                        knoxssResponse.Error = 'XSS is not possible with the requested URL'
-                        inputValues.discard(targetUrl)
-                    
-                    elif fullResponse == '':
-                        knoxssResponse.Error = 'Empty response from API'
-                        
-                    else:
-                        print(colored('Something went wrong: '+str(e),'red'))
-                        # remove the URL from the int input set
-                        inputValues.discard(targetUrl)
-                            
-                if knoxssResponse.Calls != 'Unknown' and knoxssResponse.Calls != '':
-                    latestApiCalls = knoxssResponse.Calls
+                    if knoxssResponse.Calls != 'Unknown' and knoxssResponse.Calls != '':
+                        latestApiCalls = knoxssResponse.Calls
                         
         except Exception as e:
             knoxssResponse.Error = 'FAIL'
@@ -672,10 +690,8 @@ def processInput():
 
                 print(colored('Calling KNOXSS API for '+str(len(inputValues))+' targets...\n', 'cyan'))
                 if not stopProgram:
-                    p = mp.Pool(args.processes)
-                    p.map(processUrl, inputValues)
-                    p.close()
-                    p.join()
+                    with ThreadPoolExecutor(max_workers=args.processes) as executor:
+                        executor.map(processUrl, inputValues)
 
             except Exception as e:
                 print(colored('ERROR processInput 3: ' + str(e), 'red'))
@@ -683,17 +699,17 @@ def processInput():
     except Exception as e:
         print(colored('ERROR processInput 1: ' + str(e), 'red'))
 
-def discordNotify(target,poc,vulnType):
-    global DISCORD_WEBHOOK
+def discordNotify(target, poc, vulnType):
+    global DISCORD_WEBHOOK, HTTP_ADAPTER_DISCORD
     try:
         embed = {
-            "description": "```\n"+poc+"\n```",
-            "title": "KNOXSS POC for "+target,
-            "color": 42320,  # Green
+            "description": "```\n" + poc + "\n```",
+            "title": "KNOXSS POC for " + target,
+            "color": 42320,
             "fields": [
                 {
                     "name": "",
-                    "value": "[☕ Buy me a coffee, Thanks!](https://ko-fi.com/xnlh4ck3r)", 
+                    "value": "[☕ Buy me a coffee, Thanks!](https://ko-fi.com/xnlh4ck3r)",
                     "inline": False
                 }
             ]
@@ -704,17 +720,40 @@ def discordNotify(target,poc,vulnType):
             "embeds": [embed],
             "avatar_url": "https://avatars.githubusercontent.com/u/84544946"
         }
-        try:
-            result = requests.post(DISCORD_WEBHOOK, json=data)
-            if 300 <= result.status_code < 200:
-                print(colored('WARNING: Failed to send notification to Discord - ' + result.json(), 'yellow'))
-        except Exception as e:
-            print(colored('WARNING: Failed to send notification to Discord - ' + str(e), 'yellow'))
+
+        session = requests.Session()
+        session.mount('https://', HTTP_ADAPTER_DISCORD)
+
+        max_attempts = 5
+        attempt = 0
+
+        while attempt < max_attempts:
+            attempt += 1
+            result = session.post(DISCORD_WEBHOOK, json=data)
+
+            if result.status_code == 429:
+                try:
+                    retry_after = result.json().get("retry_after", 1)
+                    time.sleep(retry_after)
+                    continue
+                except Exception as e:
+                    time.sleep(1)
+                    continue
+            elif result.status_code >= 300:
+                print(colored('ERROR: Failed to send notification to Discord - ' + result.text, 'yellow'))
+                break  
+
+            break
+        
+        # If we used all attempts and it never broke out early, print final warning:
+        if attempt == max_attempts and (result.status_code < 200 or result.status_code >= 300):
+            print(colored('ERROR: Failed to send notification to Discord after '+str(max_attempts)+' attempts.', 'red'))
+          
     except Exception as e:
-        print(colored('ERROR discordNotify 1: ' + str(e), 'red'))
+        print(colored('ERROR discordNotify: ' + str(e), 'red'))
 
 def discordNotifyComplete(input, description, incomplete):
-    global DISCORD_WEBHOOK_COMPLETE
+    global DISCORD_WEBHOOK_COMPLETE, HTTP_ADAPTER_DISCORD
     try:
         if incomplete:
             title = "INCOMPLETE FOR FILE `"+input+"`"
@@ -743,12 +782,33 @@ def discordNotifyComplete(input, description, incomplete):
             "embeds": [embed],
         }
 
-        try:
-            result = requests.post(DISCORD_WEBHOOK_COMPLETE, json=data)
-            if 300 <= result.status_code < 200:
-                print(colored('WARNING: Failed to send notification to Discord - ' + result.json(), 'yellow'))
-        except Exception as e:
-            print(colored('WARNING: Failed to send notification to Discord - ' + str(e), 'yellow'))
+        session = requests.Session()
+        session.mount('https://', HTTP_ADAPTER_DISCORD)
+
+        max_attempts = 5
+        attempt = 0
+
+        while attempt < max_attempts:
+            attempt += 1
+            result = session.post(DISCORD_WEBHOOK_COMPLETE, json=data)
+
+            if result.status_code == 429:
+                try:
+                    retry_after = result.json().get("retry_after", 1)
+                    time.sleep(retry_after)
+                    continue
+                except Exception as e:
+                    time.sleep(1)
+                    continue
+            elif result.status_code >= 300:
+                print(colored('ERROR: Failed to send Complete notification to Discord - ' + result.text, 'yellow'))
+                break  
+            
+            break
+        
+        # If we used all attempts and it never broke out early, print final warning:
+        if attempt == max_attempts and (result.status_code < 200 or result.status_code >= 300):
+            print(colored('ERROR: Failed to send Complete notification to Discord after '+str(max_attempts)+' attempts.', 'red'))
 
     except Exception as e:
         print(colored('ERROR discordNotifyComplete 1: ' + str(e), 'red'))
@@ -796,8 +856,8 @@ def processOutput(target, method, knoxssResponse):
     global latestApiCalls, successCountXSS, successCountOR, outFile, currentCount, rateLimitExceeded, urlPassed, needToStop, dontDisplay, blockedDomains, needToRetry, forbiddenResponseCount, errorCount, safeCount, requestCount, skipCount, runtimeLog
     try:
         if knoxssResponse.Error != 'FAIL':
-                
-            if knoxssResponse.PoC != 'none' and knoxssResponse.Error != 'none':
+            
+            if knoxssResponse.PoC == 'none' and knoxssResponse.Error != 'none':
                 if not args.success_only:
                     knoxssResponseError = knoxssResponse.Error
                     # If there is a 403, it maybe because the users IP is blocked on the KNOXSS firewall
@@ -849,6 +909,10 @@ def processOutput(target, method, knoxssResponse):
                 # If it is a new reset time then replace the .apireset file
                 if knoxssResponse.Timestamp != '' and latestApiCalls.startswith('1/'):
                     setAPILimitReset(knoxssResponse.Timestamp)
+                
+                # If for any reason neither of the XSS and Redir flags are "true" (not intended) then assume it the PoC is XSS
+                if knoxssResponse.PoC != 'none' and knoxssResponse.XSS != 'true' and knoxssResponse.Redir != 'true':
+                    knoxssResponse.XSS = 'true'
                     
                 if knoxssResponse.XSS == 'true':
                     xssText = '[ XSS! ] - (' + method + ') ' + knoxssResponse.PoC
@@ -1219,7 +1283,11 @@ def main():
                 print(colored('Unable to check the latest version. Check your internet connection.', 'red'))
             elif __version__ != latestVersion:
                 updateProgram()
-                sys.exit()
+            else:
+                print(colored('You are already running the latest version of knoxnl.Thanks for using!', 'green'))
+            print()
+            print(colored('✅ Want to buy me a coffee? ☕ https://ko-fi.com/xnlh4ck3r 🤘', 'green'))
+            sys.exit()
         except Exception as e:
             print(colored(f'ERROR: Unable to update - {str(e)}','red'))
              
