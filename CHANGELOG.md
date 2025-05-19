@@ -1,5 +1,23 @@
 ## Changelog
 
+- 5.0
+
+  - New
+
+    - When using the `-rl`/`--runtime-log` or `-v`/`--verbose` argument, the KNOXSS Runtime Logs will be streamed to the terminal.
+    - Add argument `-st`/`--stall-timeout`. This will be the amount of time that we will wait between steps in the scan (as shown in the runtime logs) before aborting. It must be at least 60 seconds, and will default to 300 seconds.
+    - Clarify that the `-fn`/`--force-new` option will make checks slower because it is doing checks from scratch instead of looking at the cache. Using the option all the time will defeat the purpose of the cache system.
+    - When `--runtime-log` or `--verbose` is used, prefix the output with a Thread ID, e.g. `[T2]` so that it is easier to track what log refers to what URL. This will only be displayed if a file was passed as input and there is more than one process (i.e. `args.processes` > 1).
+    - Add argument `-do`/`--debug-output` to specify a file to save all terminal output to, used for debugging. Using this option will also show the JSON response.
+    - Reset the `retryAttempt` back to 0 after 24 hours.
+    - Add a description to the `README` that clarifies what Content Types of URl responses KNOXSS will be able to search for XSS.
+
+  - Changed
+
+    - Change how to determine if a result from the API is classed and an error `[ ERR! ]` or `[ NONE ]` to make it clearer. If the error `KNOXSS engine is failing at some point` is returned, but `API Call` is not `0`, then just set as `[ NONE ]`. If there is an error `Content type of target page can't lead to XSS` then display that after the `[ NONE ]` line to make it clear there was an error, but not with the API.
+    - Argument `-v`/`--verbose` will also show the streaming runtime logs aswell as the JSON response.
+    - Change the README to mention that KNOXSS searches for Open Redirects aswell as XSS.
+
 - 4.13
 
   - New
