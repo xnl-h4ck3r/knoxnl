@@ -1,5 +1,11 @@
 ## Changelog
 
+- 5.1
+
+  - Changed
+
+    - The error that includes `can't test it (forbidden)` has now changed to `got another 403` so code changed to reflect this. This is only relevant if the `-sb`/`--skip-blocked` argument is used.
+
 - 5.0
 
   - New

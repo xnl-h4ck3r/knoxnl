@@ -908,8 +908,8 @@ def processOutput(target, method, knoxssResponse):
             if knoxssResponse.Timestamp != '' and latestApiCalls.startswith('1/'):
                 setAPILimitReset(knoxssResponse.Timestamp)
             
-            # If the error has "can\'t test it (forbidden)" it means the a 403 was returned by the target
-            if "can't test it (forbidden)" in knoxssResponseError.lower():
+            # If the error has "got another 403" it means the a 403 was returned by the target
+            if "got another 403" in knoxssResponseError.lower():
                 knoxssResponseError = 'Target returned a "403 Forbidden". There could be WAF in place.'
                 # If requested to skip blocked domains after a limit, then save them
                 if args.skip_blocked > 0:
