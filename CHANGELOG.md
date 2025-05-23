@@ -1,5 +1,10 @@
 ## Changelog
 
+- 5.2
+
+  - Changed
+    - If a file of URLs is passed as input, those URLs will be processed in a random order instead of the order in the original file. This is to help with the "flying under the radar" methodology that KNOXSS are trying to employ in the next versions.
+
 - 5.1
 
   - Changed

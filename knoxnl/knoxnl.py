@@ -30,6 +30,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 import queue
 import threading
+import random
 
 # Global variables
 stopProgram = False
@@ -691,12 +692,13 @@ def processInput():
             processUrl(inputArg)
         else: # It's a file of URLs
             try:
-                # Open file and put all values in input set
+                # Open file and put all values in input set, but in random order
                 with open(inputArg, 'r') as inputFile:
-                    lines = inputFile.readlines()          
-                for line in lines:
-                    if line.strip() != '':
-                        inputValues.add(line.strip())
+                    lines = [line.strip() for line in inputFile if line.strip() != '']
+
+                # Randomize the order before adding to the set. This is to help "fly under the radar" of WAFs on the target systems
+                random.shuffle(lines)
+                inputValues = set(lines)
 
                 print(colored('Calling KNOXSS API for '+str(len(inputValues))+' targets (with '+str(args.processes)+' processes/threads)...\n', 'cyan'))
                 if not stopProgram:
@@ -924,7 +926,7 @@ def processOutput(target, method, knoxssResponse):
             
             # If it is the generic error "KNOXSS engine is failing at some point" then we will not display that because it will be reported as NONE
             if 'failing at some point' in knoxssResponseError:
-                    knoxssResponseError = 'none'
+                knoxssResponseError = 'none'
                     
             # If for any reason neither of the XSS and Redir flags are "true" (not intended) then assume it the PoC is XSS
             if knoxssResponse.PoC != 'none' and knoxssResponse.XSS != 'true' and knoxssResponse.Redir != 'true':
