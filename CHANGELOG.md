@@ -1,5 +1,11 @@
 ## Changelog
 
+- 5.3
+
+  - New
+
+    - If the API returns a response of `Invalid or expired API key.` then stop the program with an error `KNOXSS ERR: Invalid or expired API key. Go to knoxss.pro and (re)validate your key.`
+
 - 5.2
 
   - Changed

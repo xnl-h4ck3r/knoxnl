@@ -558,6 +558,11 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     knoxssResponse.Error = f"The scan exceeded the timeout of {args.timeout} seconds."
                     knoxssResponse.PoC = 'none'
                     knoxssResponse.Calls = 'Unknown'
+                elif fullResponse.strip() == 'Invalid or expired API key.':
+                    knoxssResponse.Error = 'Invalid or expired API key. Go to knoxss.pro and (re)validate your key.'
+                    knoxssResponse.PoC = 'none'
+                    knoxssResponse.Calls = 'Unknown'
+                    needToStop = True
                 else:
                     if verbose() or debugFileIsOpen:
                         tprint('KNOXSS API request:')
