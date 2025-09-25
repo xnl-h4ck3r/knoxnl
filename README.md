@@ -1,6 +1,6 @@
 <center><img src="https://github.com/xnl-h4ck3r/knoxnl/blob/main/knoxnl/images/title.png"></center>
 
-## About - v5.3
+## About - v5.4
 
 This is a python wrapper around the amazing [KNOXSS API](https://knoxss.pro/?page_id=2729) by Brute Logic.
 To use this tool (and the underlying API), you must have a valid KNOXSS API key. Don't have one? Go visit https://knoxss.pro and subscribe!
@@ -158,7 +158,7 @@ To be able to use **knoxnl** to test a request in Burp Suite Proxy, we can use i
 6. Check the **Pass HTTP headers to command** check-box.
 7. If you are on a Linux machine, or Windows without WSL, do the following:
    - In the **Command line parameters** box you enter the command and arguments one line at a time.
-   - You want to enter a command of `/my/path/to/python3 /my/path/to/knoxnl.py --burp-piper -X BOTH` for example, providing the full path of the `knoxnl` binary file.
+   - You want to enter a command of `/my/path/to/knoxnl --burp-piper -X BOTH` for example, providing the full path of the `knoxnl` binary file.
    - So in the **Command line parameters** input field it would look like this:
      ```
      /my/path/to/knoxnl

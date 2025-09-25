@@ -1,5 +1,12 @@
 ## Changelog
 
+- 5.4
+
+  - Changed
+
+    - If the API key is invalid or expired, a message is shown to tell the user to go to knoxss.pro. The message has been changed to say `https://knoxss.pro` so that the user can click the link from the terminal to make it easier.
+    - Fix `README` instructions for using `piper` which still mentioned using the path to `Python`
+
 - 5.3
 
   - New

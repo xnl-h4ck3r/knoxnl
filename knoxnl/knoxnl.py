@@ -268,7 +268,7 @@ def showOptions():
         
         if args.force_new:
             print(colored('-fn: True', 'magenta'), 'Forces KNOXSS to do a new scan instead of getting cached results.')
-             
+            
         if args.runtime_log:
             print(colored('-rl: True', 'magenta'), 'Provides a live runtime log of the KNOXSS scan.')
 
@@ -559,7 +559,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     knoxssResponse.PoC = 'none'
                     knoxssResponse.Calls = 'Unknown'
                 elif fullResponse.strip() == 'Invalid or expired API key.':
-                    knoxssResponse.Error = 'Invalid or expired API key. Go to knoxss.pro and (re)validate your key.'
+                    knoxssResponse.Error = 'Invalid or expired API key. Go to https://knoxss.pro and (re)validate your key.'
                     knoxssResponse.PoC = 'none'
                     knoxssResponse.Calls = 'Unknown'
                     needToStop = True
