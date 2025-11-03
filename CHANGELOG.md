@@ -1,5 +1,11 @@
 ## Changelog
 
+- 5.5
+
+  - Changed
+
+    - BUG FIX: In some situations, the error `ERROR knoxssApi 4:  Expecting value: line 1 column 1 (char 0)` was being shown when an invalid API key was passed.
+
 - 5.4
 
   - Changed

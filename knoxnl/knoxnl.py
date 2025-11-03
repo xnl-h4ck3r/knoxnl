@@ -573,33 +573,40 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                     jsonPart = fullResponse.strip()
                     if not jsonPart:
                         raise ValueError("Empty response received from KNOXSS API")
-                    jsonResponse = json.loads(jsonPart)
-                    knoxssResponse.XSS = str(jsonResponse.get('XSS'))
-                    knoxssResponse.Redir = str(jsonResponse.get('Redir'))
-                    knoxssResponse.PoC = str(jsonResponse.get('PoC'))
-                    knoxssResponse.Calls = str(jsonResponse.get('API Call', 'Unknown'))
-                    if knoxssResponse.Calls == '0':
+                    
+                    if jsonPart == 'Invalid or expired API key.':
+                        knoxssResponse.Error = 'Invalid or expired API key. Go to https://knoxss.pro and (re)validate your key.'
+                        knoxssResponse.PoC = 'none'
                         knoxssResponse.Calls = 'Unknown'
-                    knoxssResponse.Error = str(jsonResponse.get('Error'))
-                    knoxssResponse.POSTData = str(jsonResponse.get('POST Data'))
-                    knoxssResponse.Timestamp = str(jsonResponse.get('Timestamp'))
+                        needToStop = True
+                    else:
+                        jsonResponse = json.loads(jsonPart)
+                        knoxssResponse.XSS = str(jsonResponse.get('XSS'))
+                        knoxssResponse.Redir = str(jsonResponse.get('Redir'))
+                        knoxssResponse.PoC = str(jsonResponse.get('PoC'))
+                        knoxssResponse.Calls = str(jsonResponse.get('API Call', 'Unknown'))
+                        if knoxssResponse.Calls == '0':
+                            knoxssResponse.Calls = 'Unknown'
+                        knoxssResponse.Error = str(jsonResponse.get('Error'))
+                        knoxssResponse.POSTData = str(jsonResponse.get('POST Data'))
+                        knoxssResponse.Timestamp = str(jsonResponse.get('Timestamp'))
 
-                    if knoxssResponse.PoC != 'none':
-                        if 'service unavailable' in knoxssResponse.Error.lower() or "please retry" in knoxssResponse.Error.lower():
-                            if args.retries > 0:
-                                needToRetry = True
-                        elif knoxssResponse.Error == 'API rate limit exceeded.':
-                            rateLimitExceeded = True
-                            knoxssResponse.Calls = 'API rate limit exceeded!'
-                            if not (timeAPIReset is not None and args.pause_until_reset):
-                                needToStop = True
+                        if knoxssResponse.PoC != 'none':
+                            if 'service unavailable' in knoxssResponse.Error.lower() or "please retry" in knoxssResponse.Error.lower():
+                                if args.retries > 0:
+                                    needToRetry = True
+                            elif knoxssResponse.Error == 'API rate limit exceeded.':
+                                rateLimitExceeded = True
+                                knoxssResponse.Calls = 'API rate limit exceeded!'
+                                if not (timeAPIReset is not None and args.pause_until_reset):
+                                    needToStop = True
+                            else:
+                                inputValues.discard(targetUrl)
                         else:
                             inputValues.discard(targetUrl)
-                    else:
-                        inputValues.discard(targetUrl)
 
-                    if knoxssResponse.Calls not in ('Unknown', ''):
-                        latestApiCalls = knoxssResponse.Calls
+                        if knoxssResponse.Calls not in ('Unknown', ''):
+                            latestApiCalls = knoxssResponse.Calls
             except Exception as e:
                 knoxssResponse.Error = str(e)
                 knoxssResponse.PoC = 'none'
