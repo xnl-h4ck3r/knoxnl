@@ -526,6 +526,8 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         line = q.get(timeout=0.5)
                         if line is None:
                             break  # End of stream
+                        if isinstance(line, bytes):
+                            line = line.decode('utf-8', errors='replace')
                         if not line.startswith("["):
                             fullResponse += line + "\n"
 
