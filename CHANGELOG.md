@@ -1,5 +1,11 @@
 ## Changelog
 
+- v5.7
+
+  - Changed
+    - BUG FIX: The version was incorrectly showing as outdated even though it wasn't.
+    - Changed `knoxnl.py`, `setup.py` and `__init__.py` to pass all linting (ruff) and formatting checks (black)
+
 - v5.6
 
   - BUG FIX: A user was getting error `ERROR knoxssapi 3:  startswith first arg must be bytes or a tuple of bytes, not str`. Although I cannot replicate this, it appears to be related to the content of the latest API call being treated as bytes and not a string. In an attempt to fix this issue I have explicitly converted to a string if bytes.
