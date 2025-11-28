@@ -2,6 +2,19 @@
 import os
 import shutil
 from setuptools import setup, find_packages
+import re
+
+
+# Read version from __init__.py without importing
+def get_version():
+    init_path = os.path.join(os.path.dirname(__file__), "knoxnl", "__init__.py")
+    with open(init_path, encoding="utf-8") as f:
+        content = f.read()
+        match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
+        if match:
+            return match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
 
 # Define the target directory for the config.yml file
 # target_directory = os.path.join(os.path.expanduser("~"), ".config", "urless") if os.path.expanduser("~") else None
@@ -45,7 +58,7 @@ if target_directory and os.path.isfile("config.yml"):
 setup(
     name="knoxnl",
     packages=find_packages(),
-    version=__import__("knoxnl").__version__,
+    version=get_version(),
     description="A python wrapper around the amazing KNOXSS API by Brute Logic (requires an API Key)",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
