@@ -1,5 +1,11 @@
 ## Changelog
 
+- v5.8
+
+  - Changed
+    - BUG FIX: When a "service unavailable" or "please retry" error was returned from the KNOXSS API, the retry logic was not triggered due to an inverted condition. This caused URLs to fail without pausing when the API was temporarily unavailable.
+    - BUG FIX: Pressing Ctrl-C multiple times could cause threading shutdown errors. Now subsequent Ctrl-C presses are ignored after the first one.
+
 - v5.7
 
   - Changed

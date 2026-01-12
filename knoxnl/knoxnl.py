@@ -244,6 +244,9 @@ def handler(signal_received, frame):
     An attempt will be made to try and clean up properly
     """
     global stopProgram, needToStop, inputValues, blockedDomains, todoFileName, fileIsOpen, debugFileIsOpen
+    # If already shutting down, ignore subsequent Ctrl-C presses
+    if stopProgram:
+        return
     stopProgram = True
     pauseEvent.clear()
     if not needToStop:
@@ -840,7 +843,7 @@ def knoxssApi(targetUrl, headers, method, knoxssResponse):
                         knoxssResponse.POSTData = str(jsonResponse.get("POST Data"))
                         knoxssResponse.Timestamp = str(jsonResponse.get("Timestamp"))
 
-                        if knoxssResponse.PoC != "none":
+                        if knoxssResponse.PoC == "none":
                             if (
                                 "service unavailable" in knoxssResponse.Error.lower()
                                 or "please retry" in knoxssResponse.Error.lower()
