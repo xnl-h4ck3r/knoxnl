@@ -1,5 +1,10 @@
 ## Changelog
 
+- v5.9
+
+  - New
+    - If the `config.yml` file is not found in the expected config directory (e.g. `~/.config/knoxnl/` on Linux or `%APPDATA%/knoxnl/` on Windows), it will be automatically created with default values. This fixes the issue where installing with `pipx` did not create the `config.yml` file.
+
 - v5.8
 
   - Changed

@@ -481,32 +481,71 @@ def needApiKey():
         )
 
 
+def getConfigDir():
+    """Get the config directory path based on the OS."""
+    return (
+        Path(os.path.join(os.getenv("APPDATA", ""), "knoxnl"))
+        if os.name == "nt"
+        else (
+            Path(os.path.join(os.path.expanduser("~"), ".config", "knoxnl"))
+            if os.name == "posix"
+            else (
+                Path(
+                    os.path.join(
+                        os.path.expanduser("~"),
+                        "Library",
+                        "Application Support",
+                        "knoxnl",
+                    )
+                )
+                if os.name == "darwin"
+                else None
+            )
+        )
+    )
+
+
+def ensureConfigExists():
+    """Ensure the config.yml file exists, creating it with defaults if not."""
+    try:
+        configDir = getConfigDir()
+        if configDir is None:
+            return
+        configFile = Path(configDir / "config.yml")
+        if not os.path.isfile(configFile):
+            os.makedirs(configDir, exist_ok=True)
+            defaultConfig = (
+                "API_URL: https://api.knoxss.pro\n"
+                "API_KEY: YOUR_API_KEY\n"
+                "DISCORD_WEBHOOK: YOUR_WEBHOOK\n"
+                "DISCORD_WEBHOOK_COMPLETE: YOUR_WEBHOOK\n"
+            )
+            with open(configFile, "w") as f:
+                f.write(defaultConfig)
+            print(
+                colored(
+                    "\nThe file "
+                    + str(configFile)
+                    + " was not found, so has been created with default values.\n",
+                    "cyan",
+                )
+            )
+    except Exception as e:
+        print(
+            colored(
+                "ERROR: Unable to create config file: " + str(e),
+                "red",
+            )
+        )
+
+
 def getConfig():
     # Try to get the values from the config file, otherwise use the defaults
     global API_URL, API_KEY, DISCORD_WEBHOOK, DISCORD_WEBHOOK_COMPLETE, configPath, HTTP_ADAPTER, HTTP_ADAPTER_DISCORD, apiResetPath
     try:
 
         # Put config in global location based on the OS.
-        configPath = (
-            Path(os.path.join(os.getenv("APPDATA", ""), "knoxnl"))
-            if os.name == "nt"
-            else (
-                Path(os.path.join(os.path.expanduser("~"), ".config", "knoxnl"))
-                if os.name == "posix"
-                else (
-                    Path(
-                        os.path.join(
-                            os.path.expanduser("~"),
-                            "Library",
-                            "Application Support",
-                            "knoxnl",
-                        )
-                    )
-                    if os.name == "darwin"
-                    else None
-                )
-            )
-        )
+        configPath = getConfigDir()
 
         # Set up an HTTPAdaptor for retry strategy when making requests
         try:
@@ -542,6 +581,7 @@ def getConfig():
         else:
             apiResetPath = Path(configPath / ".apireset")
             configPath = Path(configPath / "config.yml")
+
         config = yaml.safe_load(open(configPath))
 
         try:
@@ -1798,6 +1838,10 @@ def main():
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--version", action="store_true", help="Show version number")
+    # Ensure the config file exists before parsing args
+    # This is needed so the config is created even when running -h or with no args
+    ensureConfigExists()
+
     args = parser.parse_args()
 
     # If --version was passed, display version and exit
